@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Printer {
+  id             String           @id @default(cuid())
+  name           String
+  location       String?
+  ipAddress      String           @unique
+  snmpCommunity  String           @default("public")
+  snmpVersion    Int              @default(2)
+  model          String?
+  status         String           @default("unknown") // online | offline | error | unknown
+  lastPolledAt   DateTime?
+  lastError      String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  supplies       PrinterSupply[]
+  readings       PrinterReading[]
+}
+
+model PrinterSupply {
+  id            String   @id @default(cuid())
+  printer       Printer  @relation(fields: [printerId], references: [id], onDelete: Cascade)
+  printerId     String
+  name          String   // e.g. "Black Toner", "Tray 1"
+  type          String   // toner | drum | paper | waste | other
+  levelPercent  Int?
+  currentLevel  Int?
+  maxCapacity   Int?
+  unit          String?  // percent | sheets | units
+  updatedAt     DateTime @updatedAt
+
+  @@unique([printerId, name])
+}
+
+model PrinterReading {
+  id                String   @id @default(cuid())
+  printer           Printer  @relation(fields: [printerId], references: [id], onDelete: Cascade)
+  printerId         String
+  timestamp         DateTime @default(now())
+  status            String
+  suppliesSnapshot  String   // JSON-encoded array of {name,type,levelPercent}
+
+  @@index([printerId, timestamp])
+}
+
+model Camera {
+  id            String    @id @default(cuid())
+  name          String
+  location      String?
+  protocol      String    @default("onvif") // onvif | rtsp | mjpeg
+  host          String
+  port          Int       @default(80)
+  rtspPath      String?
+  snapshotUrl   String?
+  username      String?
+  password      String?
+  status        String    @default("unknown") // online | offline | error | unknown
+  lastSeenAt    DateTime?
+  lastError     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([host, port])
+}
+
+model CalendarIntegration {
+  id             String    @id @default(cuid())
+  provider       String    @default("google")
+  connectedEmail String?
+  accessToken    String?
+  refreshToken   String?
+  expiryDate     DateTime?
+  calendarId     String    @default("primary")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
