@@ -265,7 +265,7 @@ export default function TvDashboardPage() {
           </div>
         </TerminalPanel>
 
-        <div className="grid min-h-0 grid-rows-2 gap-3">
+        <div className="grid min-h-0 gap-3" style={{ gridTemplateRows: "3fr 1fr" }}>
           <TerminalPanel
             title={`cameras (${cameras?.length ?? 0})`}
             bodyClassName="overflow-hidden p-0"
