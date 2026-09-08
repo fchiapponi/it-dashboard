@@ -167,8 +167,8 @@ export const CAMERAS: CameraConfig[] = [
 
 export const SERVERS: ServerConfig[] = [
   { name: "172.28.0.35", ipAddress: "172.28.0.35" },
-  { name: "172.28.2.41", ipAddress: "172.28.2.41" },
+  { name: "172.25.2.41", ipAddress: "172.25.2.41" },
   { name: "172.28.0.22", ipAddress: "172.28.0.22" },
   { name: "172.25.2.45", ipAddress: "172.25.2.45" },
-  { name: "172.25.201.205", ipAddress: "172.25.201.205" },
+  { name: "172.25.201.200", ipAddress: "172.25.201.200" },
 ];
