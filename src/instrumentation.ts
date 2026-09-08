@@ -5,6 +5,17 @@ export async function register() {
   if (globalForPoller.__tasisPollerStarted) return;
   globalForPoller.__tasisPollerStarted = true;
 
+  // The onvif library can throw asynchronously from inside its own HTTP
+  // response handlers (outside any try/catch we control) when a camera
+  // returns an unexpected response — without this, that crashes/kills the
+  // whole dashboard instead of just failing that one camera's poll.
+  process.on("uncaughtException", (err) => {
+    console.error("[poller] uncaught exception (ignored, process kept alive)", err);
+  });
+  process.on("unhandledRejection", (err) => {
+    console.error("[poller] unhandled rejection (ignored, process kept alive)", err);
+  });
+
   const cron = await import("node-cron");
   const { pollAllPrinters } = await import("@/lib/printer-service");
   const { pollAllCameras } = await import("@/lib/camera-service");

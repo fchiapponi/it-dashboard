@@ -54,19 +54,32 @@ export function probeOnvifCamera(opts: {
           settle({ online: true, error: "Snapshot request timed out", deviceName });
         }, SNAPSHOT_TIMEOUT_MS);
 
-        this.getSnapshotUri((err2: Error | null, snapshot?: { uri: string }) => {
+        try {
+          this.getSnapshotUri((err2: Error | null, snapshot?: { uri: string }) => {
+            clearTimeout(snapshotTimer);
+            if (settled) return;
+            if (err2 || !snapshot) {
+              settle({
+                online: true,
+                error: `Snapshot unavailable: ${err2?.message ?? "empty response"}`,
+                deviceName,
+              });
+              return;
+            }
+            settle({ online: true, snapshotUrl: snapshot.uri, deviceName });
+          });
+        } catch (syncErr) {
+          // The onvif library can throw synchronously here (e.g. when a device
+          // has no media profile registered) instead of calling back with an
+          // error — without this, that becomes an uncaught exception in the
+          // background poller.
           clearTimeout(snapshotTimer);
-          if (settled) return;
-          if (err2 || !snapshot) {
-            settle({
-              online: true,
-              error: `Snapshot unavailable: ${err2?.message ?? "empty response"}`,
-              deviceName,
-            });
-            return;
-          }
-          settle({ online: true, snapshotUrl: snapshot.uri, deviceName });
-        });
+          settle({
+            online: true,
+            error: `Snapshot unavailable: ${syncErr instanceof Error ? syncErr.message : "device has no media profile"}`,
+            deviceName,
+          });
+        }
       },
     );
   });
