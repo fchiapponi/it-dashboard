@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, type CSSProperties } from "react";
 import { Printer, Video, Wifi, Server, AlertTriangle, TerminalSquare } from "lucide-react";
 import { usePrinters, useCameras, useAccessPoints, useServers } from "@/lib/hooks";
 import { StatTile } from "@/components/ui/StatTile";
@@ -102,6 +102,20 @@ function supplyShortLabel(supply: { name: string; type: string }): string {
 }
 
 export default function TvDashboardPage() {
+  // Browsers won't auto-fullscreen a page, but they will on the first user
+  // gesture — this makes the very first click/tap anywhere go fullscreen
+  // (hiding the address bar) without needing a visible button.
+  useEffect(() => {
+    const goFullscreen = () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen?.().catch(() => {});
+      }
+      document.removeEventListener("click", goFullscreen);
+    };
+    document.addEventListener("click", goFullscreen);
+    return () => document.removeEventListener("click", goFullscreen);
+  }, []);
+
   const { data: printers } = usePrinters();
   const { data: cameras } = useCameras();
   const { data: accessPoints } = useAccessPoints();
