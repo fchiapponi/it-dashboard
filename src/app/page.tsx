@@ -6,7 +6,6 @@ import { usePrinters, useCameras, useAccessPoints, useServers } from "@/lib/hook
 import { StatTile } from "@/components/ui/StatTile";
 import { TerminalPanel } from "@/components/ui/TerminalPanel";
 import { StatusBadge, statusColor, type Status } from "@/components/ui/StatusBadge";
-import { levelColor } from "@/components/ui/LevelBar";
 import { Clock } from "@/components/layout/Clock";
 import { Countdowns } from "@/components/layout/Countdowns";
 
@@ -26,6 +25,20 @@ const TYPE_LABELS: Record<string, string> = {
   fuser: "Fuser",
 };
 
+// The dot/label next to each supply shows what it physically is (its real
+// ink color), not how full it is — the chip's red outline already covers
+// "this needs attention".
+const SWATCH_COLORS: Record<string, string> = {
+  K: "#e2e8f0",
+  C: "#22e8e0",
+  M: "#f472b6",
+  Y: "#facc15",
+};
+
+function swatchColor(label: string): string {
+  return SWATCH_COLORS[label] ?? "var(--text-dim)";
+}
+
 function chipStyle(status: Status): CSSProperties {
   if (status === "online" || status === "unknown") return {};
   const color = statusColor(status);
@@ -43,6 +56,40 @@ function sortProblemsFirst<T extends { status: Status }>(items: T[] | undefined)
 
 function isTonerLike(supply: { type: string }): boolean {
   return supply.type === "ink" || supply.type === "toner";
+}
+
+type SupplyLike = { type: string; levelPercent: number | null };
+
+function minTonerPercent(printer: { supplies: SupplyLike[] }): number {
+  const levels = printer.supplies
+    .filter(isTonerLike)
+    .map((s) => s.levelPercent)
+    .filter((v): v is number => v !== null);
+  return levels.length ? Math.min(...levels) : Infinity;
+}
+
+// Offline/error printers first, then online ones ordered by their lowest
+// remaining ink/toner level (most urgent first).
+function sortPrintersByUrgency<T extends { status: Status; supplies: SupplyLike[] }>(
+  printers: T[] | undefined,
+): T[] {
+  if (!printers) return [];
+  return [...printers].sort((a, b) => {
+    const aOffline = a.status !== "online" ? 0 : 1;
+    const bOffline = b.status !== "online" ? 0 : 1;
+    if (aOffline !== bOffline) return aOffline - bOffline;
+    return minTonerPercent(a) - minTonerPercent(b);
+  });
+}
+
+// Same as chipStyle, but also flags online printers that are dangerously low
+// on ink/toner — not just ones that are outright unreachable.
+function printerChipStyle(printer: { status: Status; supplies: SupplyLike[] }): CSSProperties {
+  if (printer.status === "online" && minTonerPercent(printer) <= LOW_SUPPLY_THRESHOLD) {
+    const color = statusColor("error");
+    return { borderColor: color, boxShadow: `inset 0 0 0 1px ${color}, 0 0 10px -2px ${color}` };
+  }
+  return chipStyle(printer.status);
 }
 
 function supplyShortLabel(supply: { name: string; type: string }): string {
@@ -66,7 +113,7 @@ export default function TvDashboardPage() {
   const serversOnline = servers?.filter((s) => s.status === "online").length ?? 0;
 
   const sortedAccessPoints = sortProblemsFirst(accessPoints);
-  const sortedPrinters = sortProblemsFirst(printers);
+  const sortedPrinters = sortPrintersByUrgency(printers);
   const sortedCameras = sortProblemsFirst(cameras);
   const sortedServers = sortProblemsFirst(servers);
 
@@ -183,7 +230,7 @@ export default function TvDashboardPage() {
               }, {});
               const baseLabelSeen: Record<string, number> = {};
               return (
-              <div key={p.id} className="glass-chip rounded-[0.25rem] px-2 py-1.5" style={chipStyle(p.status)}>
+              <div key={p.id} className="glass-chip rounded-[0.25rem] px-2 py-1.5" style={printerChipStyle(p)}>
                 <div className="flex items-center justify-between gap-1.5">
                   <span className="truncate text-[0.6875rem] text-[var(--text-primary)]">{p.name}</span>
                   <StatusBadge status={p.status} hideLabel className="shrink-0" />
@@ -191,8 +238,8 @@ export default function TvDashboardPage() {
                 {tonerSupplies.length > 0 && (
                   <div className="no-scrollbar mt-1.5 flex flex-nowrap gap-x-2.5 overflow-x-auto">
                     {tonerSupplies.map((s) => {
-                      const color = levelColor(s.levelPercent);
                       const base = supplyShortLabel(s);
+                      const color = swatchColor(base);
                       baseLabelSeen[base] = (baseLabelSeen[base] ?? 0) + 1;
                       const label = baseLabelCounts[base] > 1 ? `${base}${baseLabelSeen[base]}` : base;
                       return (
