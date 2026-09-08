@@ -32,6 +32,15 @@ function chipStyle(status: Status): CSSProperties {
   return { borderColor: color, boxShadow: `inset 0 0 0 1px ${color}, 0 0 10px -2px ${color}` };
 }
 
+function sortProblemsFirst<T extends { status: Status }>(items: T[] | undefined): T[] {
+  if (!items) return [];
+  return [...items].sort((a, b) => {
+    const aOk = a.status === "online" ? 1 : 0;
+    const bOk = b.status === "online" ? 1 : 0;
+    return aOk - bOk;
+  });
+}
+
 function isTonerLike(supply: { type: string }): boolean {
   return supply.type === "ink" || supply.type === "toner";
 }
@@ -53,6 +62,10 @@ export default function TvDashboardPage() {
   const printersOnline = printers?.filter((p) => p.status === "online").length ?? 0;
   const camerasOnline = cameras?.filter((c) => c.status === "online").length ?? 0;
   const apsOnline = accessPoints?.filter((a) => a.status === "online").length ?? 0;
+
+  const sortedAccessPoints = sortProblemsFirst(accessPoints);
+  const sortedPrinters = sortProblemsFirst(printers);
+  const sortedCameras = sortProblemsFirst(cameras);
 
   const printersWithLowSupply =
     printers?.filter((p) =>
@@ -125,7 +138,7 @@ export default function TvDashboardPage() {
             {!accessPoints?.length && (
               <p className="text-xs text-[var(--text-dim)]">No access points found.</p>
             )}
-            {accessPoints?.map((a) => (
+            {sortedAccessPoints.map((a) => (
               <div
                 key={a.serial}
                 title={a.model}
@@ -152,7 +165,7 @@ export default function TvDashboardPage() {
             {!printers?.length && (
               <p className="text-xs text-[var(--text-dim)]">No printers configured.</p>
             )}
-            {printers?.map((p) => {
+            {sortedPrinters.map((p) => {
               const tonerSupplies = p.supplies.filter(isTonerLike);
               const baseLabelCounts = tonerSupplies.reduce<Record<string, number>>((acc, s) => {
                 const base = supplyShortLabel(s);
@@ -207,7 +220,7 @@ export default function TvDashboardPage() {
             {!cameras?.length && (
               <p className="text-xs text-[var(--text-dim)]">No cameras configured.</p>
             )}
-            {cameras?.map((c) => (
+            {sortedCameras.map((c) => (
               <div
                 key={c.id}
                 className="glass-chip rounded-[0.25rem] px-1 py-0.5"
