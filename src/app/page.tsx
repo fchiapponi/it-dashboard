@@ -135,7 +135,7 @@ export default function TvDashboardPage() {
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-4 gap-3">
+      <div className="grid min-h-0 flex-1 grid-cols-3 gap-3">
         <TerminalPanel
           title={`access points (${accessPoints?.length ?? 0})`}
           bodyClassName="overflow-hidden p-0"
@@ -218,61 +218,63 @@ export default function TvDashboardPage() {
           </div>
         </TerminalPanel>
 
-        <TerminalPanel
-          title={`cameras (${cameras?.length ?? 0})`}
-          bodyClassName="overflow-hidden p-0"
-        >
-          <div
-            className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
-            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(7rem, 1fr))" }}
+        <div className="grid min-h-0 grid-rows-2 gap-3">
+          <TerminalPanel
+            title={`cameras (${cameras?.length ?? 0})`}
+            bodyClassName="overflow-hidden p-0"
           >
-            {!cameras?.length && (
-              <p className="text-xs text-[var(--text-dim)]">No cameras configured.</p>
-            )}
-            {sortedCameras.map((c) => (
-              <div
-                key={c.id}
-                className="glass-chip rounded-[0.25rem] px-1 py-0.5"
-                style={chipStyle(c.status)}
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{c.name}</span>
-                  <StatusBadge status={c.status} hideLabel className="shrink-0" />
+            <div
+              className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
+              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(7rem, 1fr))" }}
+            >
+              {!cameras?.length && (
+                <p className="text-xs text-[var(--text-dim)]">No cameras configured.</p>
+              )}
+              {sortedCameras.map((c) => (
+                <div
+                  key={c.id}
+                  className="glass-chip rounded-[0.25rem] px-1 py-0.5"
+                  style={chipStyle(c.status)}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{c.name}</span>
+                    <StatusBadge status={c.status} hideLabel className="shrink-0" />
+                  </div>
+                  {c.location && (
+                    <div className="mt-0.5 truncate text-[0.5rem] text-[var(--text-faint)]">{c.location}</div>
+                  )}
                 </div>
-                {c.location && (
-                  <div className="mt-0.5 truncate text-[0.5rem] text-[var(--text-faint)]">{c.location}</div>
-                )}
-              </div>
-            ))}
-          </div>
-        </TerminalPanel>
+              ))}
+            </div>
+          </TerminalPanel>
 
-        <TerminalPanel
-          title={`servers (${servers?.length ?? 0})`}
-          bodyClassName="overflow-hidden p-0"
-        >
-          <div
-            className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
-            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))" }}
+          <TerminalPanel
+            title={`servers (${servers?.length ?? 0})`}
+            bodyClassName="overflow-hidden p-0"
           >
-            {!servers?.length && (
-              <p className="text-xs text-[var(--text-dim)]">No servers configured.</p>
-            )}
-            {sortedServers.map((s) => (
-              <div
-                key={s.id}
-                title={s.ipAddress}
-                className="glass-chip rounded-[0.25rem] px-1 py-0.5"
-                style={chipStyle(s.status)}
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{s.name}</span>
-                  <StatusBadge status={s.status} hideLabel className="shrink-0" />
+            <div
+              className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
+              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))" }}
+            >
+              {!servers?.length && (
+                <p className="text-xs text-[var(--text-dim)]">No servers configured.</p>
+              )}
+              {sortedServers.map((s) => (
+                <div
+                  key={s.id}
+                  title={s.ipAddress}
+                  className="glass-chip rounded-[0.25rem] px-1 py-0.5"
+                  style={chipStyle(s.status)}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{s.name}</span>
+                    <StatusBadge status={s.status} hideLabel className="shrink-0" />
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </TerminalPanel>
+              ))}
+            </div>
+          </TerminalPanel>
+        </div>
       </div>
     </div>
   );
