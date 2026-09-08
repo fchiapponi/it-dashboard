@@ -83,11 +83,19 @@ function sortPrintersByUrgency<T extends { status: Status; supplies: SupplyLike[
 }
 
 // Same as chipStyle, but also flags online printers that are dangerously low
-// on ink/toner — not just ones that are outright unreachable.
+// on ink/toner — not just ones that are outright unreachable. Empty (0%) is
+// red; anything else under the threshold is amber.
 function printerChipStyle(printer: { status: Status; supplies: SupplyLike[] }): CSSProperties {
-  if (printer.status === "online" && minTonerPercent(printer) <= LOW_SUPPLY_THRESHOLD) {
-    const color = statusColor("error");
-    return { borderColor: color, boxShadow: `inset 0 0 0 1px ${color}, 0 0 10px -2px ${color}` };
+  if (printer.status === "online") {
+    const minPercent = minTonerPercent(printer);
+    if (minPercent <= 0) {
+      const color = statusColor("error");
+      return { borderColor: color, boxShadow: `inset 0 0 0 1px ${color}, 0 0 10px -2px ${color}` };
+    }
+    if (minPercent < LOW_SUPPLY_THRESHOLD) {
+      const color = statusColor("warning");
+      return { borderColor: color, boxShadow: `inset 0 0 0 1px ${color}, 0 0 10px -2px ${color}` };
+    }
   }
   return chipStyle(printer.status);
 }
