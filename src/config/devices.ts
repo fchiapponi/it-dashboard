@@ -7,6 +7,11 @@ export interface PrinterConfig {
   model?: string;
 }
 
+export interface ServerConfig {
+  name: string;
+  ipAddress: string;
+}
+
 export interface CameraConfig {
   name: string;
   protocol: "onvif" | "rtsp" | "mjpeg";
@@ -160,4 +165,14 @@ export const CAMERAS: CameraConfig[] = [
   { name: "172.30.33.247", protocol: "onvif", host: "172.30.33.247" },
   { name: "172.30.33.248", protocol: "onvif", host: "172.30.33.248" },
   { name: "172.30.33.250", protocol: "onvif", host: "172.30.33.250" },
+];
+
+export const SERVERS: ServerConfig[] = [
+  { name: "172.28.0.35", ipAddress: "172.28.0.35" },
+  { name: "172.28.2.41", ipAddress: "172.28.2.41" },
+  { name: "172.28.0.22", ipAddress: "172.28.0.22" },
+  { name: "172.28.2.45", ipAddress: "172.28.2.45" },
+  { name: "172.28.201.200", ipAddress: "172.28.201.200" },
+  { name: "172.28.0.21", ipAddress: "172.28.0.21" },
+  { name: "172.28.0.20", ipAddress: "172.28.0.20" },
 ];

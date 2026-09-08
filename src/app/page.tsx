@@ -1,8 +1,8 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { Printer, Video, Wifi, AlertTriangle, TerminalSquare } from "lucide-react";
-import { usePrinters, useCameras, useAccessPoints } from "@/lib/hooks";
+import { Printer, Video, Wifi, Server, AlertTriangle, TerminalSquare } from "lucide-react";
+import { usePrinters, useCameras, useAccessPoints, useServers } from "@/lib/hooks";
 import { StatTile } from "@/components/ui/StatTile";
 import { TerminalPanel } from "@/components/ui/TerminalPanel";
 import { StatusBadge, statusColor, type Status } from "@/components/ui/StatusBadge";
@@ -58,14 +58,17 @@ export default function TvDashboardPage() {
   const { data: printers } = usePrinters();
   const { data: cameras } = useCameras();
   const { data: accessPoints } = useAccessPoints();
+  const { data: servers } = useServers();
 
   const printersOnline = printers?.filter((p) => p.status === "online").length ?? 0;
   const camerasOnline = cameras?.filter((c) => c.status === "online").length ?? 0;
   const apsOnline = accessPoints?.filter((a) => a.status === "online").length ?? 0;
+  const serversOnline = servers?.filter((s) => s.status === "online").length ?? 0;
 
   const sortedAccessPoints = sortProblemsFirst(accessPoints);
   const sortedPrinters = sortProblemsFirst(printers);
   const sortedCameras = sortProblemsFirst(cameras);
+  const sortedServers = sortProblemsFirst(servers);
 
   const printersWithLowSupply =
     printers?.filter((p) =>
@@ -98,7 +101,7 @@ export default function TvDashboardPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-5 gap-3">
         <StatTile
           label="Access points online"
           value={`${apsOnline}/${accessPoints?.length ?? 0}`}
@@ -124,9 +127,15 @@ export default function TvDashboardPage() {
           icon={<Video className="h-4 w-4" />}
           tone="cyan"
         />
+        <StatTile
+          label="Servers online"
+          value={`${serversOnline}/${servers?.length ?? 0}`}
+          icon={<Server className="h-4 w-4" />}
+          tone="accent"
+        />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-3 gap-3">
+      <div className="grid min-h-0 flex-1 grid-cols-4 gap-3">
         <TerminalPanel
           title={`access points (${accessPoints?.length ?? 0})`}
           bodyClassName="overflow-hidden p-0"
@@ -159,8 +168,8 @@ export default function TvDashboardPage() {
           bodyClassName="overflow-hidden p-0"
         >
           <div
-            className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
-            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(11rem, 1fr))" }}
+            className="no-scrollbar grid h-full content-start gap-1.5 overflow-y-auto p-2"
+            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(13rem, 1fr))" }}
           >
             {!printers?.length && (
               <p className="text-xs text-[var(--text-dim)]">No printers configured.</p>
@@ -174,13 +183,13 @@ export default function TvDashboardPage() {
               }, {});
               const baseLabelSeen: Record<string, number> = {};
               return (
-              <div key={p.id} className="glass-chip rounded-[0.25rem] px-1 py-0.5" style={chipStyle(p.status)}>
-                <div className="flex items-center justify-between gap-1">
-                  <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{p.name}</span>
+              <div key={p.id} className="glass-chip rounded-[0.25rem] px-2 py-1.5" style={chipStyle(p.status)}>
+                <div className="flex items-center justify-between gap-1.5">
+                  <span className="truncate text-[0.6875rem] text-[var(--text-primary)]">{p.name}</span>
                   <StatusBadge status={p.status} hideLabel className="shrink-0" />
                 </div>
                 {tonerSupplies.length > 0 && (
-                  <div className="no-scrollbar mt-1 flex flex-nowrap gap-x-2 overflow-x-auto">
+                  <div className="no-scrollbar mt-1.5 flex flex-nowrap gap-x-2.5 overflow-x-auto">
                     {tonerSupplies.map((s) => {
                       const color = levelColor(s.levelPercent);
                       const base = supplyShortLabel(s);
@@ -190,11 +199,11 @@ export default function TvDashboardPage() {
                         <span
                           key={s.id}
                           title={s.name}
-                          className="flex shrink-0 items-center gap-1 text-[0.5rem] tabular-nums"
+                          className="flex shrink-0 items-center gap-1 text-[0.625rem] tabular-nums"
                           style={{ color }}
                         >
                           <span
-                            className="h-1.5 w-1.5 shrink-0 rounded-full"
+                            className="h-2 w-2 shrink-0 rounded-full"
                             style={{ background: color, boxShadow: `0 0 4px ${color}` }}
                           />
                           {label} {s.levelPercent === null ? "N/A" : `${s.levelPercent}%`}
@@ -233,6 +242,33 @@ export default function TvDashboardPage() {
                 {c.location && (
                   <div className="mt-0.5 truncate text-[0.5rem] text-[var(--text-faint)]">{c.location}</div>
                 )}
+              </div>
+            ))}
+          </div>
+        </TerminalPanel>
+
+        <TerminalPanel
+          title={`servers (${servers?.length ?? 0})`}
+          bodyClassName="overflow-hidden p-0"
+        >
+          <div
+            className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
+            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))" }}
+          >
+            {!servers?.length && (
+              <p className="text-xs text-[var(--text-dim)]">No servers configured.</p>
+            )}
+            {sortedServers.map((s) => (
+              <div
+                key={s.id}
+                title={s.ipAddress}
+                className="glass-chip rounded-[0.25rem] px-1 py-0.5"
+                style={chipStyle(s.status)}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{s.name}</span>
+                  <StatusBadge status={s.status} hideLabel className="shrink-0" />
+                </div>
               </div>
             ))}
           </div>

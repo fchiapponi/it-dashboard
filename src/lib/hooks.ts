@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import type { PrinterDTO, CameraDTO, CalendarEventDTO, CalendarStatusDTO } from "@/lib/types";
+import type { PrinterDTO, CameraDTO, ServerDTO, CalendarEventDTO, CalendarStatusDTO } from "@/lib/types";
 import type { AccessPointDTO } from "@/lib/meraki";
 
 const fetcher = (url: string) =>
@@ -20,6 +20,10 @@ export function useCameras() {
 
 export function useAccessPoints() {
   return useSWR<AccessPointDTO[]>("/api/access-points", fetcher, { refreshInterval: 30000 });
+}
+
+export function useServers() {
+  return useSWR<ServerDTO[]>("/api/servers", fetcher, { refreshInterval: 30000 });
 }
 
 export function useCalendarStatus() {

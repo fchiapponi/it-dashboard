@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { encryptSecret } from "@/lib/crypto";
-import { PRINTERS, CAMERAS } from "@/config/devices";
+import { PRINTERS, CAMERAS, SERVERS } from "@/config/devices";
 
 // Makes src/config/devices.ts the single source of truth: on every startup,
 // the database is reconciled to match it exactly (create/update/delete),
@@ -64,4 +64,15 @@ export async function syncDevicesFromConfig() {
   if (staleCameraIds.length) {
     await prisma.camera.deleteMany({ where: { id: { in: staleCameraIds } } });
   }
+
+  for (const s of SERVERS) {
+    await prisma.server.upsert({
+      where: { ipAddress: s.ipAddress },
+      create: { name: s.name, ipAddress: s.ipAddress },
+      update: { name: s.name },
+    });
+  }
+  await prisma.server.deleteMany({
+    where: { ipAddress: { notIn: SERVERS.map((s) => s.ipAddress) } },
+  });
 }

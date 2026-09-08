@@ -35,6 +35,15 @@ export interface CameraDTO {
   lastError: string | null;
 }
 
+export interface ServerDTO {
+  id: string;
+  name: string;
+  ipAddress: string;
+  status: "online" | "offline" | "unknown";
+  lastSeenAt: string | null;
+  lastError: string | null;
+}
+
 export interface CalendarEventDTO {
   id: string;
   title: string;
