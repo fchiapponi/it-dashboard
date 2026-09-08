@@ -135,7 +135,7 @@ export default function TvDashboardPage() {
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-3 gap-3">
+      <div className="grid min-h-0 flex-1 grid-cols-[1.2fr_1.2fr_0.7fr] gap-3">
         <TerminalPanel
           title={`access points (${accessPoints?.length ?? 0})`}
           bodyClassName="overflow-hidden p-0"
