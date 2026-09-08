@@ -52,6 +52,9 @@ body {
   font-family: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
   min-height: 100dvh;
   position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
 }
 
 body::before {

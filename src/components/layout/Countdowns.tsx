@@ -34,6 +34,18 @@ function formatDH(ms: number): string {
   return d > 0 ? `${d}d ${h}h` : `${h}h`;
 }
 
+function nextChristmas(now: Date): Date {
+  const target = new Date(now.getFullYear(), 11, 25, 0, 0, 0, 0);
+  if (target.getTime() <= now.getTime()) target.setFullYear(target.getFullYear() + 1);
+  return target;
+}
+
+function formatDays(ms: number): string {
+  const days = Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+  if (days === 0) return "today!";
+  return `${days}d`;
+}
+
 export function Countdowns() {
   const [now, setNow] = useState<Date | null>(null);
 
@@ -51,6 +63,7 @@ export function Countdowns() {
 
   const toFive = nextFiveDeadline(now).getTime() - now.getTime();
   const toFridayFive = nextFridayFive(now).getTime() - now.getTime();
+  const toChristmas = nextChristmas(now).getTime() - now.getTime();
 
   return (
     <div className="flex items-center gap-3 text-[0.625rem]">
@@ -61,6 +74,10 @@ export function Countdowns() {
       <div className="flex items-center gap-1.5">
         <span className="text-[var(--text-faint)] uppercase tracking-wider">Friday 17:00 in</span>
         <span className="tabular-nums text-[var(--cyan)]">{formatDH(toFridayFive)}</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[var(--text-faint)] uppercase tracking-wider">Christmas in</span>
+        <span className="tabular-nums text-[var(--accent)]">{formatDays(toChristmas)}</span>
       </div>
     </div>
   );
