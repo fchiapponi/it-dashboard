@@ -19,7 +19,13 @@ No login, no settings UI — everything is either polled directly from the devic
 - Network access to the printer and camera subnets (see **Network requirements** below)
 - A Cisco Meraki Dashboard API key, if you want access points (optional — the dashboard works fine without it, that column just stays empty)
 
-## Setup
+## Setup — one click
+
+On a Mac that already has this repo cloned and a working `.env` in the project folder, double-click **`Start Dashboard.command`**. First run installs Node (via Homebrew) and dependencies, builds, and starts the dashboard in the background, then opens it in your browser — this can take a few minutes the first time. Double-clicking it again just reopens the browser if it's already running. Logs go to `dashboard.log` next to it.
+
+If there's no `.env` yet, the script stops and tells you — copy a working one into the project folder (it holds secrets, so it's never in git) and double-click again.
+
+## Setup — manual
 
 ```bash
 git clone git@github.com:fchiapponi/tasis-dashboard.git
