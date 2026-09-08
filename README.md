@@ -81,18 +81,22 @@ Printers and cameras live on the school's internal LAN and are (rightly) not rea
 
 Access points are the exception: since they're fetched from Meraki's cloud API rather than polled directly, that column works from anywhere with internet access.
 
-## Running it permanently
+## Running it permanently — autonomous mode
 
-`npm run start` only stays up as long as its terminal/session does. To keep it running across reboots and crashes, use a process manager, e.g. [pm2](https://pmpm2.keymetrics.io/):
+`npm run start` only stays up as long as its terminal/session does, and code changes need someone to manually pull, rebuild and restart. For the Mac driving the TV, `mac/` has a self-contained `launchd` setup that removes both of those:
 
 ```bash
-npm install -g pm2
-pm2 start npm --name tasis-dashboard -- start
-pm2 save
-pm2 startup   # prints the command to make pm2 itself start on boot
+./mac/install.sh
 ```
 
-On a Mac, a `launchd` LaunchDaemon is the native alternative; on Windows, a real Windows Service (e.g. via `nssm`) or a Task Scheduler task set to "run whether user is logged on or not".
+This installs two `launchd` LaunchAgents (run once, safe to re-run after moving the repo):
+
+- **`com.tasis.dashboard`** — runs `npm run start`, starts at login, restarts automatically if it crashes.
+- **`com.tasis.dashboard-updater`** — every 5 minutes, checks `origin/main` for new commits; if there are any, pulls, runs `npm install` / `prisma generate` / `prisma migrate deploy` / `npm run build`, then restarts the service above.
+
+So you keep developing and pushing from your own machine as usual — the TV Mac picks up the change on its own within a few minutes, no one needs to touch it. Logs land in `dashboard.log` and `updater.log` next to the repo. To remove it: `launchctl bootout gui/$(id -u)/com.tasis.dashboard gui/$(id -u)/com.tasis.dashboard-updater`.
+
+`Start Dashboard.command` still works as a manual fallback (e.g. first-time setup, or a machine not running the LaunchAgents) — it just opens the browser tab if the dashboard is already up.
 
 ## Project structure
 

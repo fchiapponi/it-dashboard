@@ -46,6 +46,7 @@ next-env.d.ts
 /prisma/dev.db-journal
 /src/generated/prisma
 
-# one-click launcher output
+# one-click launcher / autonomous updater output
 /dashboard.log
+/updater.log
 
