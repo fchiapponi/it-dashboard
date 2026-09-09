@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, type CSSProperties } from "react";
-import { Printer, Video, Wifi, Server, AlertTriangle, TerminalSquare } from "lucide-react";
+import { Printer, Video, Wifi, Server, AlertTriangle, TerminalSquare, Users } from "lucide-react";
 import { usePrinters, useCameras, useAccessPoints, useServers } from "@/lib/hooks";
 import { StatTile } from "@/components/ui/StatTile";
 import { TerminalPanel } from "@/components/ui/TerminalPanel";
@@ -132,6 +132,7 @@ export default function TvDashboardPage() {
   const printersOnline = printers?.filter((p) => p.status === "online").length ?? 0;
   const camerasOnline = cameras?.filter((c) => c.status === "online").length ?? 0;
   const apsOnline = accessPoints?.filter((a) => a.status === "online").length ?? 0;
+  const totalClients = accessPoints?.reduce((sum, a) => sum + a.clientCount, 0) ?? 0;
   const serversOnline = servers?.filter((s) => s.status === "online").length ?? 0;
 
   const sortedAccessPoints = sortProblemsFirst(accessPoints);
@@ -170,11 +171,17 @@ export default function TvDashboardPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-6 gap-3">
         <StatTile
           label="Access points online"
           value={`${apsOnline}/${accessPoints?.length ?? 0}`}
           icon={<Wifi className="h-4 w-4" />}
+          tone="cyan"
+        />
+        <StatTile
+          label="Clients connected"
+          value={totalClients}
+          icon={<Users className="h-4 w-4" />}
           tone="cyan"
         />
         <StatTile
@@ -225,6 +232,7 @@ export default function TvDashboardPage() {
               >
                 <div className="flex items-center justify-between gap-1">
                   <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{a.name}</span>
+                  <span className="shrink-0 text-[0.5rem] text-[var(--text-dim)]">{a.clientCount}</span>
                   <StatusBadge status={a.status} hideLabel className="shrink-0" />
                 </div>
               </div>
