@@ -54,6 +54,18 @@ function sortProblemsFirst<T extends { status: Status }>(items: T[] | undefined)
   });
 }
 
+function sortProblemsFirstThenByClients<T extends { status: Status; clientCount: number }>(
+  items: T[] | undefined,
+): T[] {
+  if (!items) return [];
+  return [...items].sort((a, b) => {
+    const aOk = a.status === "online" ? 1 : 0;
+    const bOk = b.status === "online" ? 1 : 0;
+    if (aOk !== bOk) return aOk - bOk;
+    return b.clientCount - a.clientCount;
+  });
+}
+
 function isTonerLike(supply: { type: string }): boolean {
   return supply.type === "ink" || supply.type === "toner";
 }
@@ -135,7 +147,7 @@ export default function TvDashboardPage() {
   const totalClients = accessPoints?.reduce((sum, a) => sum + a.clientCount, 0) ?? 0;
   const serversOnline = servers?.filter((s) => s.status === "online").length ?? 0;
 
-  const sortedAccessPoints = sortProblemsFirst(accessPoints);
+  const sortedAccessPoints = sortProblemsFirstThenByClients(accessPoints);
   const sortedPrinters = sortPrintersByUrgency(printers);
   const sortedCameras = sortProblemsFirst(cameras);
   const sortedServers = sortProblemsFirst(servers);
@@ -231,8 +243,8 @@ export default function TvDashboardPage() {
                 style={chipStyle(a.status)}
               >
                 <div className="flex items-center justify-between gap-1">
-                  <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{a.name}</span>
                   <span className="shrink-0 text-[0.5rem] text-[var(--text-dim)]">{a.clientCount}</span>
+                  <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{a.name}</span>
                   <StatusBadge status={a.status} hideLabel className="shrink-0" />
                 </div>
               </div>
