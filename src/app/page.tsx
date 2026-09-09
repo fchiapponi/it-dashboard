@@ -254,7 +254,7 @@ export default function TvDashboardPage() {
               return (
               <div key={p.id} className="glass-chip rounded-[0.25rem] px-2 py-1.5" style={printerChipStyle(p)}>
                 <div className="flex items-center justify-between gap-1.5">
-                  <span className="truncate text-[0.6875rem] font-bold text-[var(--text-primary)]">{p.name}</span>
+                  <span className="truncate text-[0.6875rem] font-bold text-[var(--text-primary)]">{p.ipAddress} ({p.name})</span>
                   <StatusBadge status={p.status} hideLabel className="shrink-0" />
                 </div>
                 {tonerSupplies.length > 0 && (
