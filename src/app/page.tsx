@@ -155,9 +155,11 @@ export default function TvDashboardPage() {
   const printersWithLowSupply =
     printers?.filter((p) =>
       p.supplies.some(
-        (s) => isTonerLike(s) && s.levelPercent !== null && s.levelPercent <= LOW_SUPPLY_THRESHOLD,
+        (s) => isTonerLike(s) && s.levelPercent !== null && s.levelPercent > 0 && s.levelPercent < LOW_SUPPLY_THRESHOLD,
       ),
     ) ?? [];
+  const printersWithEmptySupply =
+    printers?.filter((p) => p.supplies.some((s) => isTonerLike(s) && s.levelPercent === 0)) ?? [];
 
   return (
     <div className="relative flex h-dvh w-full flex-col gap-3 overflow-hidden bg-[var(--bg)] p-4">
@@ -183,7 +185,7 @@ export default function TvDashboardPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-6 gap-3">
+      <div className="grid grid-cols-7 gap-3">
         <StatTile
           label="Access points online"
           value={`${apsOnline}/${accessPoints?.length ?? 0}`}
@@ -203,11 +205,18 @@ export default function TvDashboardPage() {
           tone="accent"
         />
         <StatTile
-          label="Supply alerts"
+          label="Supply low"
           value={printersWithLowSupply.length}
           hint={printersWithLowSupply.length ? `printers below ${LOW_SUPPLY_THRESHOLD}%` : "all ok"}
           icon={<AlertTriangle className="h-4 w-4" />}
           tone={printersWithLowSupply.length ? "amber" : "accent"}
+        />
+        <StatTile
+          label="Supply empty"
+          value={printersWithEmptySupply.length}
+          hint={printersWithEmptySupply.length ? "printers at 0%" : "all ok"}
+          icon={<AlertTriangle className="h-4 w-4" />}
+          tone={printersWithEmptySupply.length ? "red" : "accent"}
         />
         <StatTile
           label="Cameras online"
