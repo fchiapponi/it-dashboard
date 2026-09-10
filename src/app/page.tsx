@@ -9,7 +9,7 @@ import { StatusBadge, statusColor, type Status } from "@/components/ui/StatusBad
 import { Clock } from "@/components/layout/Clock";
 import { Countdowns } from "@/components/layout/Countdowns";
 
-const LOW_SUPPLY_THRESHOLD = 10;
+const LOW_SUPPLY_THRESHOLD = 5;
 
 const INK_LABELS: Record<string, string> = {
   black: "K",
