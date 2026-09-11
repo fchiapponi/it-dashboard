@@ -9,7 +9,7 @@ import { StatusBadge, statusColor, type Status } from "@/components/ui/StatusBad
 import { Clock } from "@/components/layout/Clock";
 import { Countdowns } from "@/components/layout/Countdowns";
 
-const LOW_SUPPLY_THRESHOLD = 5;
+const LOW_SUPPLY_THRESHOLD = 2;
 
 const INK_LABELS: Record<string, string> = {
   black: "K",
@@ -273,7 +273,7 @@ export default function TvDashboardPage() {
               <p className="text-xs text-[var(--text-dim)]">No printers configured.</p>
             )}
             {sortedPrinters.map((p) => {
-              const tonerSupplies = p.supplies.filter(isTonerLike);
+              const tonerSupplies = p.status === "online" ? p.supplies.filter(isTonerLike) : [];
               const baseLabelCounts = tonerSupplies.reduce<Record<string, number>>((acc, s) => {
                 const base = supplyShortLabel(s);
                 acc[base] = (acc[base] ?? 0) + 1;
