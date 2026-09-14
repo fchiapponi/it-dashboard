@@ -70,7 +70,7 @@ export const PRINTERS: PrinterConfig[] = [
   { name: "172.25.200.211", ipAddress: "172.25.200.211" },
   { name: "172.25.200.231", ipAddress: "172.25.200.231" },
   { name: "Library", ipAddress: "172.25.200.250" },
-  { name: "172.25.200.253", ipAddress: "172.25.200.253" },
+  { name: "Giani", ipAddress: "172.25.200.253" },
 ];
 
 export const CAMERAS: CameraConfig[] = [
