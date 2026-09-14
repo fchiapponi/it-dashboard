@@ -94,6 +94,11 @@ function sortPrintersByUrgency<T extends { status: Status; supplies: SupplyLike[
   });
 }
 
+// Printers that failed to respond to polling are shown as neutral gray
+// (disconnected) rather than red — red is reserved for online printers that
+// need attention (empty/low supplies).
+const PRINTER_OFFLINE_COLOR = "var(--gray)";
+
 // Same as chipStyle, but also flags online printers that are dangerously low
 // on ink/toner — not just ones that are outright unreachable. Empty (0%) is
 // red; anything else under the threshold is amber.
@@ -108,6 +113,13 @@ function printerChipStyle(printer: { status: Status; supplies: SupplyLike[] }): 
       const color = statusColor("warning");
       return { borderColor: color, boxShadow: `inset 0 0 0 1px ${color}, 0 0 10px -2px ${color}` };
     }
+    return {};
+  }
+  if (printer.status === "error") {
+    return {
+      borderColor: PRINTER_OFFLINE_COLOR,
+      boxShadow: `inset 0 0 0 1px ${PRINTER_OFFLINE_COLOR}, 0 0 10px -2px ${PRINTER_OFFLINE_COLOR}`,
+    };
   }
   return chipStyle(printer.status);
 }
@@ -284,7 +296,12 @@ export default function TvDashboardPage() {
               <div key={p.id} className="glass-chip rounded-[0.25rem] px-2 py-1.5" style={printerChipStyle(p)}>
                 <div className="flex items-center justify-between gap-1.5">
                   <span className="truncate text-[0.6875rem] font-bold text-[var(--text-primary)]">{p.name}</span>
-                  <StatusBadge status={p.status} hideLabel className="shrink-0" />
+                  <StatusBadge
+                    status={p.status}
+                    hideLabel
+                    className="shrink-0"
+                    colorOverride={p.status === "error" ? PRINTER_OFFLINE_COLOR : undefined}
+                  />
                 </div>
                 {tonerSupplies.length > 0 && (
                   <div className="no-scrollbar mt-1.5 flex flex-nowrap gap-x-2.5 overflow-x-auto">

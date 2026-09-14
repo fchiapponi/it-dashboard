@@ -20,21 +20,24 @@ export function StatusBadge({
   status,
   className,
   hideLabel = false,
+  colorOverride,
 }: {
   status: Status;
   className?: string;
   hideLabel?: boolean;
+  colorOverride?: string;
 }) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.unknown;
+  const color = colorOverride ?? cfg.color;
   return (
     <span
       className={cn("inline-flex items-center gap-1.5 text-[0.625rem] tracking-[0.12em] uppercase", className)}
-      style={{ color: cfg.color }}
+      style={{ color }}
       title={hideLabel ? cfg.label : undefined}
     >
       <span
         className="status-dot inline-block h-1.5 w-1.5 rounded-full"
-        style={{ backgroundColor: cfg.color, color: cfg.glow }}
+        style={{ backgroundColor: color, color: cfg.glow }}
       />
       {!hideLabel && cfg.label}
     </span>
