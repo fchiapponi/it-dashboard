@@ -1,7 +1,14 @@
 "use client";
 
 import useSWR from "swr";
-import type { PrinterDTO, CameraDTO, ServerDTO, CalendarEventDTO, CalendarStatusDTO } from "@/lib/types";
+import type {
+  PrinterDTO,
+  CameraDTO,
+  ServerDTO,
+  CalendarEventDTO,
+  CalendarStatusDTO,
+  TrelloListDTO,
+} from "@/lib/types";
 import type { AccessPointDTO } from "@/lib/meraki";
 
 const fetcher = (url: string) =>
@@ -34,4 +41,8 @@ export function useCalendarEvents(enabled: boolean) {
   return useSWR<CalendarEventDTO[]>(enabled ? "/api/calendar/events" : null, fetcher, {
     refreshInterval: 60000,
   });
+}
+
+export function useTrello() {
+  return useSWR<TrelloListDTO[]>("/api/trello", fetcher, { refreshInterval: 60000 });
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, type CSSProperties } from "react";
 import { Printer, Video, Wifi, Server, AlertTriangle, TerminalSquare, Users } from "lucide-react";
-import { usePrinters, useCameras, useAccessPoints, useServers } from "@/lib/hooks";
+import { usePrinters, useCameras, useAccessPoints, useServers, useTrello } from "@/lib/hooks";
 import { StatTile } from "@/components/ui/StatTile";
 import { TerminalPanel } from "@/components/ui/TerminalPanel";
 import { StatusBadge, statusColor, type Status } from "@/components/ui/StatusBadge";
@@ -45,13 +45,8 @@ function chipStyle(status: Status): CSSProperties {
   return { borderColor: color, boxShadow: `inset 0 0 0 1px ${color}, 0 0 10px -2px ${color}` };
 }
 
-function sortProblemsFirst<T extends { status: Status }>(items: T[] | undefined): T[] {
-  if (!items) return [];
-  return [...items].sort((a, b) => {
-    const aOk = a.status === "online" ? 1 : 0;
-    const bOk = b.status === "online" ? 1 : 0;
-    return aOk - bOk;
-  });
+function offlineOnly<T extends { status: Status }>(items: T[] | undefined): T[] {
+  return items?.filter((item) => item.status !== "online") ?? [];
 }
 
 function sortProblemsFirstThenByClients<T extends { status: Status; clientCount: number }>(
@@ -152,6 +147,7 @@ export default function TvDashboardPage() {
   const { data: cameras } = useCameras();
   const { data: accessPoints } = useAccessPoints();
   const { data: servers } = useServers();
+  const { data: trelloLists } = useTrello();
 
   const printersOnline = printers?.filter((p) => p.status === "online").length ?? 0;
   const camerasOnline = cameras?.filter((c) => c.status === "online").length ?? 0;
@@ -159,10 +155,10 @@ export default function TvDashboardPage() {
   const totalClients = accessPoints?.reduce((sum, a) => sum + a.clientCount, 0) ?? 0;
   const serversOnline = servers?.filter((s) => s.status === "online").length ?? 0;
 
-  const sortedAccessPoints = sortProblemsFirstThenByClients(accessPoints);
   const sortedPrinters = sortPrintersByUrgency(printers);
-  const sortedCameras = sortProblemsFirst(cameras);
-  const sortedServers = sortProblemsFirst(servers);
+  const sortedAccessPoints = sortProblemsFirstThenByClients(accessPoints);
+  const offlineServers = offlineOnly(servers);
+  const offlineCameras = offlineOnly(cameras);
 
   const printersWithLowSupply =
     printers?.filter((p) =>
@@ -244,29 +240,27 @@ export default function TvDashboardPage() {
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[1.2fr_1.2fr_0.7fr] gap-3">
-        <TerminalPanel
-          title={`access points (${accessPoints?.length ?? 0})`}
-          bodyClassName="overflow-hidden p-0"
-        >
-          <div
-            className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
-            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(7rem, 1fr))" }}
-          >
-            {!accessPoints?.length && (
-              <p className="text-xs text-[var(--text-dim)]">No access points found.</p>
-            )}
-            {sortedAccessPoints.map((a) => (
+      <div className="grid min-h-0 flex-1 grid-cols-[0.9fr_1.4fr_0.7fr] gap-3">
+        <TerminalPanel title="trello board" bodyClassName="overflow-hidden p-0">
+          <div className="no-scrollbar h-full columns-2 gap-3 overflow-y-auto p-2 [column-fill:_balance]">
+            {!trelloLists?.length && <p className="text-xs text-[var(--text-dim)]">No Trello data.</p>}
+            {trelloLists?.map((list) => (
               <div
-                key={a.serial}
-                title={a.model}
-                className="glass-chip rounded-[0.25rem] px-1 py-0.5"
-                style={chipStyle(a.status)}
+                key={list.id}
+                className="mb-3 break-inside-avoid rounded-[6px] border border-[var(--accent)]/25 bg-white/[0.035] shadow-[0_6px_20px_-10px_rgba(0,0,0,0.8)]"
               >
-                <div className="flex items-center justify-between gap-1">
-                  <span className="shrink-0 text-[0.5rem] text-[var(--text-dim)]">{a.clientCount}</span>
-                  <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{a.name}</span>
-                  <StatusBadge status={a.status} hideLabel className="shrink-0" />
+                <div className="truncate rounded-t-[6px] border-b border-[var(--accent)]/20 bg-[var(--accent)]/10 px-2 py-1 text-[0.625rem] font-bold tracking-[0.1em] text-[var(--accent)] uppercase">
+                  {list.name} <span className="text-[var(--text-faint)]">({list.cards.length})</span>
+                </div>
+                <div className="flex flex-col gap-1 p-1.5">
+                  {list.cards.map((card) => (
+                    <div
+                      key={card.id}
+                      className="glass-chip truncate rounded-[0.25rem] px-1.5 py-0.5 text-[0.625rem] text-[var(--text-primary)]"
+                    >
+                      {card.name}
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
@@ -274,7 +268,7 @@ export default function TvDashboardPage() {
         </TerminalPanel>
 
         <TerminalPanel
-          title={`printers (${printers?.length ?? 0})`}
+          title="printers"
           bodyClassName="overflow-hidden p-0"
         >
           <div
@@ -333,19 +327,51 @@ export default function TvDashboardPage() {
           </div>
         </TerminalPanel>
 
-        <div className="grid min-h-0 gap-3" style={{ gridTemplateRows: "1fr 3fr" }}>
+        <div className="flex min-h-0 flex-col gap-3">
+          <div className="min-h-0 flex-1">
+            <TerminalPanel
+              title="access points"
+              bodyClassName="overflow-hidden p-0"
+              className="h-full"
+            >
+              <div
+                className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
+                style={{ gridTemplateColumns: "repeat(auto-fill, minmax(7rem, 1fr))" }}
+              >
+                {!accessPoints?.length && (
+                  <p className="text-xs text-[var(--text-dim)]">No access points found.</p>
+                )}
+                {sortedAccessPoints.map((a) => (
+                  <div
+                    key={a.serial}
+                    title={a.model}
+                    className="glass-chip rounded-[0.25rem] px-1 py-0.5"
+                    style={chipStyle(a.status)}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="shrink-0 text-[0.5rem] text-[var(--text-dim)]">{a.clientCount}</span>
+                      <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{a.name}</span>
+                      <StatusBadge status={a.status} hideLabel className="shrink-0" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </TerminalPanel>
+          </div>
+
           <TerminalPanel
-            title={`servers (${servers?.length ?? 0})`}
+            title="servers"
             bodyClassName="overflow-hidden p-0"
+            className="h-auto max-h-40 shrink-0"
           >
             <div
               className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
               style={{ gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))" }}
             >
-              {!servers?.length && (
-                <p className="text-xs text-[var(--text-dim)]">No servers configured.</p>
+              {!offlineServers.length && (
+                <p className="text-xs text-[var(--text-dim)]">All online.</p>
               )}
-              {sortedServers.map((s) => (
+              {offlineServers.map((s) => (
                 <div
                   key={s.id}
                   title={s.ipAddress}
@@ -362,17 +388,18 @@ export default function TvDashboardPage() {
           </TerminalPanel>
 
           <TerminalPanel
-            title={`cameras (${cameras?.length ?? 0})`}
+            title="cameras"
             bodyClassName="overflow-hidden p-0"
+            className="h-auto max-h-40 shrink-0"
           >
             <div
               className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
               style={{ gridTemplateColumns: "repeat(auto-fill, minmax(7rem, 1fr))" }}
             >
-              {!cameras?.length && (
-                <p className="text-xs text-[var(--text-dim)]">No cameras configured.</p>
+              {!offlineCameras.length && (
+                <p className="text-xs text-[var(--text-dim)]">All online.</p>
               )}
-              {sortedCameras.map((c) => (
+              {offlineCameras.map((c) => (
                 <div
                   key={c.id}
                   className="glass-chip rounded-[0.25rem] px-1 py-0.5"
