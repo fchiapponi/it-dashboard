@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import { Printer, Video, Wifi, Server, AlertTriangle, TerminalSquare, Users } from "lucide-react";
 import { usePrinters, useCameras, useAccessPoints, useServers, useTrello } from "@/lib/hooks";
 import { StatTile } from "@/components/ui/StatTile";
@@ -129,20 +129,6 @@ function supplyShortLabel(supply: { name: string; type: string }): string {
 }
 
 export default function TvDashboardPage() {
-  // Browsers won't auto-fullscreen a page, but they will on the first user
-  // gesture — this makes the very first click/tap anywhere go fullscreen
-  // (hiding the address bar) without needing a visible button.
-  useEffect(() => {
-    const goFullscreen = () => {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen?.().catch(() => {});
-      }
-      document.removeEventListener("click", goFullscreen);
-    };
-    document.addEventListener("click", goFullscreen);
-    return () => document.removeEventListener("click", goFullscreen);
-  }, []);
-
   const { data: printers } = usePrinters();
   const { data: cameras } = useCameras();
   const { data: accessPoints } = useAccessPoints();
@@ -245,11 +231,8 @@ export default function TvDashboardPage() {
           <div className="no-scrollbar h-full columns-2 gap-3 overflow-y-auto p-2 [column-fill:_balance]">
             {!trelloLists?.length && <p className="text-xs text-[var(--text-dim)]">No Trello data.</p>}
             {trelloLists?.map((list) => (
-              <div
-                key={list.id}
-                className="mb-3 break-inside-avoid rounded-[6px] border border-[var(--accent)]/25 bg-white/[0.035] shadow-[0_6px_20px_-10px_rgba(0,0,0,0.8)]"
-              >
-                <div className="truncate rounded-t-[6px] border-b border-[var(--accent)]/20 bg-[var(--accent)]/10 px-2 py-1 text-[0.625rem] font-bold tracking-[0.1em] text-[var(--accent)] uppercase">
+              <div key={list.id} className="glass-panel mb-3 break-inside-avoid rounded-[6px]">
+                <div className="truncate border-b border-white/10 px-2 py-1 text-[0.625rem] tracking-[0.1em] text-[var(--text-dim)] uppercase">
                   {list.name} <span className="text-[var(--text-faint)]">({list.cards.length})</span>
                 </div>
                 <div className="flex flex-col gap-1 p-1.5">
