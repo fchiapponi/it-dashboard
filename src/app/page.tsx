@@ -45,8 +45,13 @@ function chipStyle(status: Status): CSSProperties {
   return { borderColor: color, boxShadow: `inset 0 0 0 1px ${color}, 0 0 10px -2px ${color}` };
 }
 
-function offlineOnly<T extends { status: Status }>(items: T[] | undefined): T[] {
-  return items?.filter((item) => item.status !== "online") ?? [];
+function sortProblemsFirst<T extends { status: Status }>(items: T[] | undefined): T[] {
+  if (!items) return [];
+  return [...items].sort((a, b) => {
+    const aOk = a.status === "online" ? 1 : 0;
+    const bOk = b.status === "online" ? 1 : 0;
+    return aOk - bOk;
+  });
 }
 
 function sortProblemsFirstThenByClients<T extends { status: Status; clientCount: number }>(
@@ -143,8 +148,8 @@ export default function TvDashboardPage() {
 
   const sortedPrinters = sortPrintersByUrgency(printers);
   const sortedAccessPoints = sortProblemsFirstThenByClients(accessPoints);
-  const offlineServers = offlineOnly(servers);
-  const offlineCameras = offlineOnly(cameras);
+  const sortedServers = sortProblemsFirst(servers);
+  const sortedCameras = sortProblemsFirst(cameras);
 
   const printersWithLowSupply =
     printers?.filter((p) =>
@@ -201,14 +206,12 @@ export default function TvDashboardPage() {
         <StatTile
           label="Supply low"
           value={printersWithLowSupply.length}
-          hint={printersWithLowSupply.length ? `printers below ${LOW_SUPPLY_THRESHOLD}%` : "all ok"}
           icon={<AlertTriangle className="h-4 w-4" />}
           tone={printersWithLowSupply.length ? "amber" : "accent"}
         />
         <StatTile
           label="Supply empty"
           value={printersWithEmptySupply.length}
-          hint={printersWithEmptySupply.length ? "printers at 0%" : "all ok"}
           icon={<AlertTriangle className="h-4 w-4" />}
           tone={printersWithEmptySupply.length ? "red" : "accent"}
         />
@@ -226,7 +229,7 @@ export default function TvDashboardPage() {
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[0.9fr_1.4fr_0.7fr] gap-3">
+      <div className="grid min-h-0 flex-1 grid-cols-[0.9fr_1.4fr_0.65fr] gap-3">
         <TerminalPanel title="trello board" bodyClassName="overflow-hidden p-0">
           <div className="no-scrollbar h-full columns-2 gap-3 overflow-y-auto p-2 [column-fill:_balance]">
             {!trelloLists?.length && <p className="text-xs text-[var(--text-dim)]">No Trello data.</p>}
@@ -343,46 +346,18 @@ export default function TvDashboardPage() {
           </div>
 
           <TerminalPanel
-            title="servers"
-            bodyClassName="overflow-hidden p-0"
-            className="h-auto max-h-40 shrink-0"
-          >
-            <div
-              className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
-              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))" }}
-            >
-              {!offlineServers.length && (
-                <p className="text-xs text-[var(--text-dim)]">All online.</p>
-              )}
-              {offlineServers.map((s) => (
-                <div
-                  key={s.id}
-                  title={s.ipAddress}
-                  className="glass-chip rounded-[0.25rem] px-1 py-0.5"
-                  style={chipStyle(s.status)}
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{s.name}</span>
-                    <StatusBadge status={s.status} hideLabel className="shrink-0" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </TerminalPanel>
-
-          <TerminalPanel
             title="cameras"
             bodyClassName="overflow-hidden p-0"
-            className="h-auto max-h-40 shrink-0"
+            className="min-h-0 flex-[0.5]"
           >
             <div
               className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
               style={{ gridTemplateColumns: "repeat(auto-fill, minmax(7rem, 1fr))" }}
             >
-              {!offlineCameras.length && (
-                <p className="text-xs text-[var(--text-dim)]">All online.</p>
+              {!sortedCameras.length && (
+                <p className="text-xs text-[var(--text-dim)]">No cameras configured.</p>
               )}
-              {offlineCameras.map((c) => (
+              {sortedCameras.map((c) => (
                 <div
                   key={c.id}
                   className="glass-chip rounded-[0.25rem] px-1 py-0.5"
@@ -395,6 +370,34 @@ export default function TvDashboardPage() {
                   {c.location && (
                     <div className="mt-0.5 truncate text-[0.5rem] text-[var(--text-faint)]">{c.location}</div>
                   )}
+                </div>
+              ))}
+            </div>
+          </TerminalPanel>
+
+          <TerminalPanel
+            title="servers"
+            bodyClassName="overflow-hidden p-0"
+            className="min-h-0 flex-[0.5]"
+          >
+            <div
+              className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
+              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))" }}
+            >
+              {!sortedServers.length && (
+                <p className="text-xs text-[var(--text-dim)]">No servers configured.</p>
+              )}
+              {sortedServers.map((s) => (
+                <div
+                  key={s.id}
+                  title={s.ipAddress}
+                  className="glass-chip rounded-[0.25rem] px-1 py-0.5"
+                  style={chipStyle(s.status)}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{s.name}</span>
+                    <StatusBadge status={s.status} hideLabel className="shrink-0" />
+                  </div>
                 </div>
               ))}
             </div>
