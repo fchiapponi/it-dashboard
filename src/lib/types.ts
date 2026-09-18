@@ -58,14 +58,3 @@ export interface CalendarStatusDTO {
   connected: boolean;
   email?: string;
 }
-
-export interface TrelloCardDTO {
-  id: string;
-  name: string;
-}
-
-export interface TrelloListDTO {
-  id: string;
-  name: string;
-  cards: TrelloCardDTO[];
-}

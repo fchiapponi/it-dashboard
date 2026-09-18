@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { Printer, Video, Wifi, Server, AlertTriangle, TerminalSquare, Users } from "lucide-react";
-import { usePrinters, useCameras, useAccessPoints, useServers, useTrello } from "@/lib/hooks";
+import { usePrinters, useCameras, useAccessPoints, useServers } from "@/lib/hooks";
 import { StatTile } from "@/components/ui/StatTile";
 import { TerminalPanel } from "@/components/ui/TerminalPanel";
 import { StatusBadge, statusColor, type Status } from "@/components/ui/StatusBadge";
@@ -138,7 +138,6 @@ export default function TvDashboardPage() {
   const { data: cameras } = useCameras();
   const { data: accessPoints } = useAccessPoints();
   const { data: servers } = useServers();
-  const { data: trelloLists } = useTrello();
 
   const printersOnline = printers?.filter((p) => p.status === "online").length ?? 0;
   const camerasOnline = cameras?.filter((c) => c.status === "online").length ?? 0;
@@ -229,24 +228,29 @@ export default function TvDashboardPage() {
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[0.9fr_1.4fr_0.65fr] gap-3">
-        <TerminalPanel title="trello board" bodyClassName="overflow-hidden p-0">
-          <div className="no-scrollbar h-full columns-2 gap-3 overflow-y-auto p-2 [column-fill:_balance]">
-            {!trelloLists?.length && <p className="text-xs text-[var(--text-dim)]">No Trello data.</p>}
-            {trelloLists?.map((list) => (
-              <div key={list.id} className="glass-panel mb-3 break-inside-avoid rounded-[6px]">
-                <div className="truncate border-b border-white/10 px-2 py-1 text-[0.625rem] tracking-[0.1em] text-[var(--text-dim)] uppercase">
-                  {list.name} <span className="text-[var(--text-faint)]">({list.cards.length})</span>
-                </div>
-                <div className="flex flex-col gap-1 p-1.5">
-                  {list.cards.map((card) => (
-                    <div
-                      key={card.id}
-                      className="glass-chip truncate rounded-[0.25rem] px-1.5 py-0.5 text-[0.625rem] text-[var(--text-primary)]"
-                    >
-                      {card.name}
-                    </div>
-                  ))}
+      <div className="grid min-h-0 flex-1 grid-cols-[1.2fr_1.2fr_0.7fr] gap-3">
+        <TerminalPanel
+          title={`access points (${accessPoints?.length ?? 0})`}
+          bodyClassName="overflow-hidden p-0"
+        >
+          <div
+            className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
+            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(7rem, 1fr))" }}
+          >
+            {!accessPoints?.length && (
+              <p className="text-xs text-[var(--text-dim)]">No access points found.</p>
+            )}
+            {sortedAccessPoints.map((a) => (
+              <div
+                key={a.serial}
+                title={a.model}
+                className="glass-chip rounded-[0.25rem] px-1 py-0.5"
+                style={chipStyle(a.status)}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="shrink-0 text-[0.5rem] text-[var(--text-dim)]">{a.clientCount}</span>
+                  <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{a.name}</span>
+                  <StatusBadge status={a.status} hideLabel className="shrink-0" />
                 </div>
               </div>
             ))}
@@ -254,7 +258,7 @@ export default function TvDashboardPage() {
         </TerminalPanel>
 
         <TerminalPanel
-          title="printers"
+          title={`printers (${printers?.length ?? 0})`}
           bodyClassName="overflow-hidden p-0"
         >
           <div
@@ -313,42 +317,37 @@ export default function TvDashboardPage() {
           </div>
         </TerminalPanel>
 
-        <div className="flex min-h-0 flex-col gap-3">
-          <div className="min-h-0 flex-1">
-            <TerminalPanel
-              title="access points"
-              bodyClassName="overflow-hidden p-0"
-              className="h-full"
+        <div className="grid min-h-0 gap-3" style={{ gridTemplateRows: "1fr 3fr" }}>
+          <TerminalPanel
+            title={`servers (${servers?.length ?? 0})`}
+            bodyClassName="overflow-hidden p-0"
+          >
+            <div
+              className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
+              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))" }}
             >
-              <div
-                className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
-                style={{ gridTemplateColumns: "repeat(auto-fill, minmax(7rem, 1fr))" }}
-              >
-                {!accessPoints?.length && (
-                  <p className="text-xs text-[var(--text-dim)]">No access points found.</p>
-                )}
-                {sortedAccessPoints.map((a) => (
-                  <div
-                    key={a.serial}
-                    title={a.model}
-                    className="glass-chip rounded-[0.25rem] px-1 py-0.5"
-                    style={chipStyle(a.status)}
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="shrink-0 text-[0.5rem] text-[var(--text-dim)]">{a.clientCount}</span>
-                      <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{a.name}</span>
-                      <StatusBadge status={a.status} hideLabel className="shrink-0" />
-                    </div>
+              {!sortedServers.length && (
+                <p className="text-xs text-[var(--text-dim)]">No servers configured.</p>
+              )}
+              {sortedServers.map((s) => (
+                <div
+                  key={s.id}
+                  title={s.ipAddress}
+                  className="glass-chip rounded-[0.25rem] px-1 py-0.5"
+                  style={chipStyle(s.status)}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{s.name}</span>
+                    <StatusBadge status={s.status} hideLabel className="shrink-0" />
                   </div>
-                ))}
-              </div>
-            </TerminalPanel>
-          </div>
+                </div>
+              ))}
+            </div>
+          </TerminalPanel>
 
           <TerminalPanel
-            title="cameras"
+            title={`cameras (${cameras?.length ?? 0})`}
             bodyClassName="overflow-hidden p-0"
-            className="min-h-0 flex-[0.5]"
           >
             <div
               className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
@@ -370,34 +369,6 @@ export default function TvDashboardPage() {
                   {c.location && (
                     <div className="mt-0.5 truncate text-[0.5rem] text-[var(--text-faint)]">{c.location}</div>
                   )}
-                </div>
-              ))}
-            </div>
-          </TerminalPanel>
-
-          <TerminalPanel
-            title="servers"
-            bodyClassName="overflow-hidden p-0"
-            className="min-h-0 flex-[0.5]"
-          >
-            <div
-              className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
-              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))" }}
-            >
-              {!sortedServers.length && (
-                <p className="text-xs text-[var(--text-dim)]">No servers configured.</p>
-              )}
-              {sortedServers.map((s) => (
-                <div
-                  key={s.id}
-                  title={s.ipAddress}
-                  className="glass-chip rounded-[0.25rem] px-1 py-0.5"
-                  style={chipStyle(s.status)}
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="truncate text-[0.5rem] text-[var(--text-primary)]">{s.name}</span>
-                    <StatusBadge status={s.status} hideLabel className="shrink-0" />
-                  </div>
                 </div>
               ))}
             </div>
