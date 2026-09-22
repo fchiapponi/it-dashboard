@@ -31,7 +31,7 @@ export interface CameraConfig {
 
 export const PRINTERS: PrinterConfig[] = [
   { name: "Art Center", ipAddress: "172.25.200.2" },
-  { name: "172.25.200.3", ipAddress: "172.25.200.3" },
+  { name: "De Nobili Registrar", ipAddress: "172.25.200.3" },
   { name: "Aurora", ipAddress: "172.25.200.4" },
   { name: "Monticello PT", ipAddress: "172.25.200.5", snmpVersion: 1 },
   { name: "MacDermid", ipAddress: "172.25.200.6", snmpVersion: 1 },

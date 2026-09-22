@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { Printer, Video, Wifi, Server, AlertTriangle, TerminalSquare, Users } from "lucide-react";
+import { Printer, Video, Wifi, Server, AlertTriangle, TerminalSquare, Users, Pin } from "lucide-react";
 import { usePrinters, useCameras, useAccessPoints, useServers } from "@/lib/hooks";
 import { StatTile } from "@/components/ui/StatTile";
 import { TerminalPanel } from "@/components/ui/TerminalPanel";
@@ -80,13 +80,25 @@ function minTonerPercent(printer: { supplies: SupplyLike[] }): number {
   return levels.length ? Math.min(...levels) : Infinity;
 }
 
-// Offline/error printers first, then online ones ordered by their lowest
-// remaining ink/toner level (most urgent first).
-function sortPrintersByUrgency<T extends { status: Status; supplies: SupplyLike[] }>(
+// Printers always kept at the top of the panel, ahead of the urgency sort.
+const PINNED_PRINTERS = new Set([
+  "De Nobili Faculty",
+  "Hadsall Faculty",
+  "Monticello Faculty",
+  "Aurora",
+  "Focolare",
+]);
+
+// Pinned printers first, then offline/error printers, then online ones
+// ordered by their lowest remaining ink/toner level (most urgent first).
+function sortPrintersByUrgency<T extends { name: string; status: Status; supplies: SupplyLike[] }>(
   printers: T[] | undefined,
 ): T[] {
   if (!printers) return [];
   return [...printers].sort((a, b) => {
+    const aPinned = PINNED_PRINTERS.has(a.name) ? 0 : 1;
+    const bPinned = PINNED_PRINTERS.has(b.name) ? 0 : 1;
+    if (aPinned !== bPinned) return aPinned - bPinned;
     const aOffline = a.status !== "online" ? 0 : 1;
     const bOffline = b.status !== "online" ? 0 : 1;
     if (aOffline !== bOffline) return aOffline - bOffline;
@@ -146,9 +158,65 @@ export default function TvDashboardPage() {
   const serversOnline = servers?.filter((s) => s.status === "online").length ?? 0;
 
   const sortedPrinters = sortPrintersByUrgency(printers);
+  const pinnedPrinters = sortedPrinters.filter((p) => PINNED_PRINTERS.has(p.name));
+  const restPrinters = sortedPrinters.filter((p) => !PINNED_PRINTERS.has(p.name));
+  const offlinePrinters = restPrinters.filter((p) => p.status !== "online");
+  const onlinePrinters = restPrinters.filter((p) => p.status === "online");
   const sortedAccessPoints = sortProblemsFirstThenByClients(accessPoints);
   const sortedServers = sortProblemsFirst(servers);
   const sortedCameras = sortProblemsFirst(cameras);
+
+  function renderPrinterCard(p: (typeof sortedPrinters)[number]) {
+    const tonerSupplies = p.status === "online" ? p.supplies.filter(isTonerLike) : [];
+    const baseLabelCounts = tonerSupplies.reduce<Record<string, number>>((acc, s) => {
+      const base = supplyShortLabel(s);
+      acc[base] = (acc[base] ?? 0) + 1;
+      return acc;
+    }, {});
+    const baseLabelSeen: Record<string, number> = {};
+    return (
+      <div key={p.id} className="glass-chip rounded-[0.25rem] px-2 py-1.5" style={printerChipStyle(p)}>
+        <div className="flex items-center justify-between gap-1.5">
+          <span className="flex min-w-0 items-center gap-1 truncate text-[0.6875rem] font-bold text-[var(--text-primary)]">
+            {PINNED_PRINTERS.has(p.name) && (
+              <Pin className="h-2.5 w-2.5 shrink-0 text-[var(--accent)]" />
+            )}
+            <span className="truncate">{p.name}</span>
+          </span>
+          <StatusBadge
+            status={p.status}
+            hideLabel
+            className="shrink-0"
+            colorOverride={p.status === "error" ? PRINTER_OFFLINE_COLOR : undefined}
+          />
+        </div>
+        {tonerSupplies.length > 0 && (
+          <div className="no-scrollbar mt-1.5 flex flex-nowrap gap-x-2.5 overflow-x-auto">
+            {tonerSupplies.map((s) => {
+              const base = supplyShortLabel(s);
+              const color = swatchColor(base);
+              baseLabelSeen[base] = (baseLabelSeen[base] ?? 0) + 1;
+              const label = baseLabelCounts[base] > 1 ? `${base}${baseLabelSeen[base]}` : base;
+              return (
+                <span
+                  key={s.id}
+                  title={s.name}
+                  className="flex shrink-0 items-center gap-1 text-[0.625rem] tabular-nums"
+                  style={{ color }}
+                >
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: color, boxShadow: `0 0 4px ${color}` }}
+                  />
+                  {label} {s.levelPercent === null ? "N/A" : `${s.levelPercent}%`}
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const printersWithLowSupply =
     printers?.filter((p) =>
@@ -261,59 +329,44 @@ export default function TvDashboardPage() {
           title={`printers (${printers?.length ?? 0})`}
           bodyClassName="overflow-hidden p-0"
         >
-          <div
-            className="no-scrollbar grid h-full content-start gap-1.5 overflow-y-auto p-2"
-            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(13rem, 1fr))" }}
-          >
+          <div className="no-scrollbar flex h-full flex-col gap-1.5 overflow-y-auto p-2">
             {!printers?.length && (
               <p className="text-xs text-[var(--text-dim)]">No printers configured.</p>
             )}
-            {sortedPrinters.map((p) => {
-              const tonerSupplies = p.status === "online" ? p.supplies.filter(isTonerLike) : [];
-              const baseLabelCounts = tonerSupplies.reduce<Record<string, number>>((acc, s) => {
-                const base = supplyShortLabel(s);
-                acc[base] = (acc[base] ?? 0) + 1;
-                return acc;
-              }, {});
-              const baseLabelSeen: Record<string, number> = {};
-              return (
-              <div key={p.id} className="glass-chip rounded-[0.25rem] px-2 py-1.5" style={printerChipStyle(p)}>
-                <div className="flex items-center justify-between gap-1.5">
-                  <span className="truncate text-[0.6875rem] font-bold text-[var(--text-primary)]">{p.name}</span>
-                  <StatusBadge
-                    status={p.status}
-                    hideLabel
-                    className="shrink-0"
-                    colorOverride={p.status === "error" ? PRINTER_OFFLINE_COLOR : undefined}
-                  />
+            {pinnedPrinters.length > 0 && (
+              <>
+                <div
+                  className="grid gap-1.5"
+                  style={{ gridTemplateColumns: "repeat(auto-fill, minmax(13rem, 1fr))" }}
+                >
+                  {pinnedPrinters.map((p) => renderPrinterCard(p))}
                 </div>
-                {tonerSupplies.length > 0 && (
-                  <div className="no-scrollbar mt-1.5 flex flex-nowrap gap-x-2.5 overflow-x-auto">
-                    {tonerSupplies.map((s) => {
-                      const base = supplyShortLabel(s);
-                      const color = swatchColor(base);
-                      baseLabelSeen[base] = (baseLabelSeen[base] ?? 0) + 1;
-                      const label = baseLabelCounts[base] > 1 ? `${base}${baseLabelSeen[base]}` : base;
-                      return (
-                        <span
-                          key={s.id}
-                          title={s.name}
-                          className="flex shrink-0 items-center gap-1 text-[0.625rem] tabular-nums"
-                          style={{ color }}
-                        >
-                          <span
-                            className="h-2 w-2 shrink-0 rounded-full"
-                            style={{ background: color, boxShadow: `0 0 4px ${color}` }}
-                          />
-                          {label} {s.levelPercent === null ? "N/A" : `${s.levelPercent}%`}
-                        </span>
-                      );
-                    })}
-                  </div>
+                {restPrinters.length > 0 && (
+                  <div className="my-0.5 border-t border-[var(--border)]" />
                 )}
+              </>
+            )}
+            {offlinePrinters.length > 0 && (
+              <>
+                <div
+                  className="grid gap-1.5"
+                  style={{ gridTemplateColumns: "repeat(auto-fill, minmax(13rem, 1fr))" }}
+                >
+                  {offlinePrinters.map((p) => renderPrinterCard(p))}
+                </div>
+                {onlinePrinters.length > 0 && (
+                  <div className="my-0.5 border-t border-[var(--border)]" />
+                )}
+              </>
+            )}
+            {onlinePrinters.length > 0 && (
+              <div
+                className="grid gap-1.5"
+                style={{ gridTemplateColumns: "repeat(auto-fill, minmax(13rem, 1fr))" }}
+              >
+                {onlinePrinters.map((p) => renderPrinterCard(p))}
               </div>
-              );
-            })}
+            )}
           </div>
         </TerminalPanel>
 
