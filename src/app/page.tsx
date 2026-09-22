@@ -370,13 +370,14 @@ export default function TvDashboardPage() {
           </div>
         </TerminalPanel>
 
-        <div className="grid min-h-0 gap-3" style={{ gridTemplateRows: "1fr 3fr" }}>
+        <div className="grid min-h-0 gap-3" style={{ gridTemplateRows: "auto 1fr" }}>
           <TerminalPanel
             title={`servers (${servers?.length ?? 0})`}
+            className="h-auto"
             bodyClassName="overflow-hidden p-0"
           >
             <div
-              className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
+              className="no-scrollbar grid content-start gap-0.5 overflow-y-auto p-1"
               style={{ gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))" }}
             >
               {!sortedServers.length && (
