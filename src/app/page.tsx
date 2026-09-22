@@ -87,6 +87,7 @@ const PINNED_PRINTERS = new Set([
   "Monticello Faculty",
   "Aurora",
   "Focolare",
+  "Fiammetta",
 ]);
 
 // Pinned printers first, then offline/error printers, then online ones
