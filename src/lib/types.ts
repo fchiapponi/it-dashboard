@@ -18,6 +18,7 @@ export interface PrinterDTO {
   lastPolledAt: string | null;
   lastError: string | null;
   alert: string | null;
+  alertLevel: "error" | "warning" | null;
   supplies: PrinterSupplyDTO[];
 }
 

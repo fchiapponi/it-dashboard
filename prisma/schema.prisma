@@ -20,6 +20,7 @@ model Printer {
   lastPolledAt   DateTime?
   lastError      String?
   alert          String?          // device-reported fault (jam, door open, …) while reachable
+  alertLevel     String?          // error | warning (paper problems)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   supplies       PrinterSupply[]

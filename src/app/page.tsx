@@ -90,12 +90,21 @@ const PINNED_PRINTERS = new Set([
   "Fiammetta",
 ]);
 
+type FaultLike = { status: Status; alert: string | null; alertLevel: "error" | "warning" | null };
+
+// Fault reported by a reachable printer: "error" (jam, door open, …) or
+// "warning" (paper problems — the printer waits, nothing is broken).
+function printerFault(printer: FaultLike): "error" | "warning" | null {
+  if (printer.status !== "online" || !printer.alert) return null;
+  return printer.alertLevel ?? "error";
+}
+
+const FAULT_RANK = { error: 0, warning: 1, none: 2 } as const;
+
 // Pinned printers first, then offline/error printers, then online ones
-// reporting a fault (jam, door open, …), then the rest ordered by their
-// lowest remaining ink/toner level (most urgent first).
-function sortPrintersByUrgency<
-  T extends { name: string; status: Status; alert: string | null; supplies: SupplyLike[] },
->(
+// reporting a fault (errors before paper warnings), then the rest ordered by
+// their lowest remaining ink/toner level (most urgent first).
+function sortPrintersByUrgency<T extends FaultLike & { name: string; supplies: SupplyLike[] }>(
   printers: T[] | undefined,
 ): T[] {
   if (!printers) return [];
@@ -106,8 +115,8 @@ function sortPrintersByUrgency<
     const aOffline = a.status !== "online" ? 0 : 1;
     const bOffline = b.status !== "online" ? 0 : 1;
     if (aOffline !== bOffline) return aOffline - bOffline;
-    const aFault = a.alert ? 0 : 1;
-    const bFault = b.alert ? 0 : 1;
+    const aFault = FAULT_RANK[printerFault(a) ?? "none"];
+    const bFault = FAULT_RANK[printerFault(b) ?? "none"];
     if (aFault !== bFault) return aFault - bFault;
     return minTonerPercent(a) - minTonerPercent(b);
   });
@@ -120,16 +129,17 @@ const PRINTER_OFFLINE_COLOR = "var(--gray)";
 
 // Same as chipStyle, but also flags online printers that report a fault or
 // are dangerously low on ink/toner — not just ones that are outright
-// unreachable. Faults and empty (0%) are red; anything else under the
-// threshold is amber.
-function printerChipStyle(printer: { status: Status; alert: string | null; supplies: SupplyLike[] }): CSSProperties {
+// unreachable. Error faults and empty (0%) are red; paper warnings and
+// anything else under the threshold are amber.
+function printerChipStyle(printer: FaultLike & { supplies: SupplyLike[] }): CSSProperties {
   if (printer.status === "online") {
     const minPercent = minTonerPercent(printer);
-    if (printer.alert || minPercent <= 0) {
+    const fault = printerFault(printer);
+    if (fault === "error" || minPercent <= 0) {
       const color = statusColor("error");
       return { borderColor: color, boxShadow: `inset 0 0 0 1px ${color}, 0 0 10px -2px ${color}` };
     }
-    if (minPercent < LOW_SUPPLY_THRESHOLD) {
+    if (fault === "warning" || minPercent < LOW_SUPPLY_THRESHOLD) {
       const color = statusColor("warning");
       return { borderColor: color, boxShadow: `inset 0 0 0 1px ${color}, 0 0 10px -2px ${color}` };
     }
@@ -175,7 +185,8 @@ export default function TvDashboardPage() {
   const sortedCameras = sortProblemsFirst(cameras);
 
   function renderPrinterCard(p: (typeof sortedPrinters)[number]) {
-    const fault = p.status === "online" ? p.alert : null;
+    const faultLevel = printerFault(p);
+    const fault = faultLevel ? p.alert : null;
     const tonerSupplies = p.status === "online" && !fault ? p.supplies.filter(isTonerLike) : [];
     const baseLabelCounts = tonerSupplies.reduce<Record<string, number>>((acc, s) => {
       const base = supplyShortLabel(s);
@@ -197,12 +208,16 @@ export default function TvDashboardPage() {
             hideLabel
             className="shrink-0"
             colorOverride={
-              p.status === "error" ? PRINTER_OFFLINE_COLOR : fault ? statusColor("error") : undefined
+              p.status === "error" ? PRINTER_OFFLINE_COLOR : faultLevel ? statusColor(faultLevel) : undefined
             }
           />
         </div>
         {fault && (
-          <div title={fault} className="mt-1.5 truncate text-[0.625rem] font-bold text-[var(--red)]">
+          <div
+            title={fault}
+            className="mt-1.5 truncate text-[0.625rem] font-bold"
+            style={{ color: statusColor(faultLevel ?? "error") }}
+          >
             {fault}
           </div>
         )}

@@ -11,6 +11,7 @@ const OID_DETECTED_ERROR_STATE = "1.3.6.1.2.1.25.3.5.1.2.1";
 
 const DEVICE_STATUS_DOWN = 5;
 const ALERT_SEVERITY_CRITICAL = 3;
+const ALERT_GROUP_INPUT = 8;
 // prtAlertCode values for empty/low ink & toner — already surfaced by the
 // supply levels, so they don't count as a fault.
 const SUPPLY_LEVEL_ALERT_CODES = new Set([1101, 1102, 1104, 1105]);
@@ -19,8 +20,8 @@ const SUPPLY_LEVEL_ALERT_CODES = new Set([1101, 1102, 1104, 1105]);
 // now. Low paper/toner, near-full output and overdue maintenance are only
 // warnings (most of our fleet sits at "low toner" permanently), and no-toner
 // is already shown by the supply levels. Bit 0 is the MSB of the first byte.
-const FAULT_BITS: { byte: number; mask: number; label: string }[] = [
-  { byte: 0, mask: 0x40, label: "Out of paper" },
+const FAULT_BITS: { byte: number; mask: number; label: string; paper?: boolean }[] = [
+  { byte: 0, mask: 0x40, label: "Out of paper", paper: true },
   { byte: 0, mask: 0x08, label: "Door open" },
   { byte: 0, mask: 0x04, label: "Paper jam" },
   { byte: 0, mask: 0x02, label: "Offline" },
@@ -67,11 +68,20 @@ export interface SupplyReading {
   unit: string;
 }
 
+// Paper problems (out of paper, requested size not loaded) are "warning";
+// anything else that stops the printer is "error".
+export type AlertLevel = "error" | "warning";
+
+export interface PrinterFault {
+  message: string;
+  level: AlertLevel;
+}
+
 export interface PrinterPollResult {
   online: boolean;
   error?: string;
   // Fault reported by the printer itself (jam, door open, …), null when fine.
-  alert: string | null;
+  alert: PrinterFault | null;
   supplies: SupplyReading[];
 }
 
@@ -196,17 +206,24 @@ export async function pollPrinter(
 
 // Prefers the vendor's own text from critical prtAlertTable entries (e.g.
 // "Paper jam in Tray 2"), falling back to the generic error-state bits.
-async function readFault(session: ReturnType<typeof snmp.createSession>): Promise<string | null> {
+// A paper problem also makes the printer report itself offline/down, so
+// those don't escalate a paper-only fault to "error".
+async function readFault(session: ReturnType<typeof snmp.createSession>): Promise<PrinterFault | null> {
   const alertTable = await tableWalk(session, OID_ALERT_TABLE).catch(() => ({}));
   const descriptions = new Set<string>();
+  let allInput = true;
   for (const row of Object.values(alertTable)) {
-    // prtAlertSeverityLevel(2), prtAlertCode(7), prtAlertDescription(8)
+    // prtAlertSeverityLevel(2), prtAlertGroup(4), prtAlertCode(7), prtAlertDescription(8)
     if (toNumber(row["2"]) !== ALERT_SEVERITY_CRITICAL) continue;
     if (SUPPLY_LEVEL_ALERT_CODES.has(toNumber(row["7"]))) continue;
     const description = toText(row["8"]);
-    if (description) descriptions.add(description);
+    if (!description) continue;
+    descriptions.add(description);
+    if (toNumber(row["4"]) !== ALERT_GROUP_INPUT) allInput = false;
   }
-  if (descriptions.size) return [...descriptions].join(" · ");
+  if (descriptions.size) {
+    return { message: [...descriptions].join(" · "), level: allInput ? "warning" : "error" };
+  }
 
   const varbinds = await new Promise<Varbind[]>((resolve, reject) => {
     session.get([OID_DETECTED_ERROR_STATE, OID_DEVICE_STATUS], (error: Error | null, vbs?: Varbind[]) => {
@@ -215,10 +232,13 @@ async function readFault(session: ReturnType<typeof snmp.createSession>): Promis
     });
   });
   const errorState = Buffer.isBuffer(varbinds[0]?.value) ? varbinds[0].value : Buffer.alloc(0);
-  const labels = FAULT_BITS.filter((b) => ((errorState[b.byte] ?? 0) & b.mask) !== 0).map((b) => b.label);
-  if (labels.length) return labels.join(" · ");
+  const active = FAULT_BITS.filter((b) => ((errorState[b.byte] ?? 0) & b.mask) !== 0);
+  if (active.length) {
+    const paperOnly = active.some((b) => b.paper) && active.every((b) => b.paper || b.label === "Offline");
+    return { message: active.map((b) => b.label).join(" · "), level: paperOnly ? "warning" : "error" };
+  }
 
-  if (toNumber(varbinds[1]?.value) === DEVICE_STATUS_DOWN) return "Printer down";
+  if (toNumber(varbinds[1]?.value) === DEVICE_STATUS_DOWN) return { message: "Printer down", level: "error" };
   return null;
 }
 
