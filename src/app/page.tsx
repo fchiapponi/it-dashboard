@@ -91,8 +91,11 @@ const PINNED_PRINTERS = new Set([
 ]);
 
 // Pinned printers first, then offline/error printers, then online ones
-// ordered by their lowest remaining ink/toner level (most urgent first).
-function sortPrintersByUrgency<T extends { name: string; status: Status; supplies: SupplyLike[] }>(
+// reporting a fault (jam, door open, …), then the rest ordered by their
+// lowest remaining ink/toner level (most urgent first).
+function sortPrintersByUrgency<
+  T extends { name: string; status: Status; alert: string | null; supplies: SupplyLike[] },
+>(
   printers: T[] | undefined,
 ): T[] {
   if (!printers) return [];
@@ -103,6 +106,9 @@ function sortPrintersByUrgency<T extends { name: string; status: Status; supplie
     const aOffline = a.status !== "online" ? 0 : 1;
     const bOffline = b.status !== "online" ? 0 : 1;
     if (aOffline !== bOffline) return aOffline - bOffline;
+    const aFault = a.alert ? 0 : 1;
+    const bFault = b.alert ? 0 : 1;
+    if (aFault !== bFault) return aFault - bFault;
     return minTonerPercent(a) - minTonerPercent(b);
   });
 }
@@ -112,13 +118,14 @@ function sortPrintersByUrgency<T extends { name: string; status: Status; supplie
 // need attention (empty/low supplies).
 const PRINTER_OFFLINE_COLOR = "var(--gray)";
 
-// Same as chipStyle, but also flags online printers that are dangerously low
-// on ink/toner — not just ones that are outright unreachable. Empty (0%) is
-// red; anything else under the threshold is amber.
-function printerChipStyle(printer: { status: Status; supplies: SupplyLike[] }): CSSProperties {
+// Same as chipStyle, but also flags online printers that report a fault or
+// are dangerously low on ink/toner — not just ones that are outright
+// unreachable. Faults and empty (0%) are red; anything else under the
+// threshold is amber.
+function printerChipStyle(printer: { status: Status; alert: string | null; supplies: SupplyLike[] }): CSSProperties {
   if (printer.status === "online") {
     const minPercent = minTonerPercent(printer);
-    if (minPercent <= 0) {
+    if (printer.alert || minPercent <= 0) {
       const color = statusColor("error");
       return { borderColor: color, boxShadow: `inset 0 0 0 1px ${color}, 0 0 10px -2px ${color}` };
     }
@@ -168,7 +175,8 @@ export default function TvDashboardPage() {
   const sortedCameras = sortProblemsFirst(cameras);
 
   function renderPrinterCard(p: (typeof sortedPrinters)[number]) {
-    const tonerSupplies = p.status === "online" ? p.supplies.filter(isTonerLike) : [];
+    const fault = p.status === "online" ? p.alert : null;
+    const tonerSupplies = p.status === "online" && !fault ? p.supplies.filter(isTonerLike) : [];
     const baseLabelCounts = tonerSupplies.reduce<Record<string, number>>((acc, s) => {
       const base = supplyShortLabel(s);
       acc[base] = (acc[base] ?? 0) + 1;
@@ -188,9 +196,16 @@ export default function TvDashboardPage() {
             status={p.status}
             hideLabel
             className="shrink-0"
-            colorOverride={p.status === "error" ? PRINTER_OFFLINE_COLOR : undefined}
+            colorOverride={
+              p.status === "error" ? PRINTER_OFFLINE_COLOR : fault ? statusColor("error") : undefined
+            }
           />
         </div>
+        {fault && (
+          <div title={fault} className="mt-1.5 truncate text-[0.625rem] font-bold text-[var(--red)]">
+            {fault}
+          </div>
+        )}
         {tonerSupplies.length > 0 && (
           <div className="no-scrollbar mt-1.5 flex flex-nowrap gap-x-2.5 overflow-x-auto">
             {tonerSupplies.map((s) => {

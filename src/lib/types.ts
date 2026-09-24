@@ -17,6 +17,7 @@ export interface PrinterDTO {
   status: "online" | "offline" | "error" | "unknown";
   lastPolledAt: string | null;
   lastError: string | null;
+  alert: string | null;
   supplies: PrinterSupplyDTO[];
 }
 

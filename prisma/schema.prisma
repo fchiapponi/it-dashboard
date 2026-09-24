@@ -19,6 +19,7 @@ model Printer {
   status         String           @default("unknown") // online | offline | error | unknown
   lastPolledAt   DateTime?
   lastError      String?
+  alert          String?          // device-reported fault (jam, door open, …) while reachable
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   supplies       PrinterSupply[]

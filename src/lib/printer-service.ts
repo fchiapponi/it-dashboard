@@ -20,6 +20,7 @@ export async function pollPrinterById(printerId: string) {
         status,
         lastPolledAt: new Date(),
         lastError: result.error ?? null,
+        alert: result.alert,
       },
     });
 

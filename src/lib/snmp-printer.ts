@@ -4,6 +4,32 @@ import snmp, { Varbind } from "net-snmp";
 const OID_SYS_DESCR = "1.3.6.1.2.1.1.1.0";
 const OID_MARKER_SUPPLIES_TABLE = "1.3.6.1.2.1.43.11.1.1";
 const OID_INPUT_TABLE = "1.3.6.1.2.1.43.8.2.1";
+const OID_ALERT_TABLE = "1.3.6.1.2.1.43.18.1.1";
+// Host Resources MIB (RFC 2790), device index 1 is the printer on every model we have.
+const OID_DEVICE_STATUS = "1.3.6.1.2.1.25.3.2.1.5.1";
+const OID_DETECTED_ERROR_STATE = "1.3.6.1.2.1.25.3.5.1.2.1";
+
+const DEVICE_STATUS_DOWN = 5;
+const ALERT_SEVERITY_CRITICAL = 3;
+// prtAlertCode values for empty/low ink & toner — already surfaced by the
+// supply levels, so they don't count as a fault.
+const SUPPLY_LEVEL_ALERT_CODES = new Set([1101, 1102, 1104, 1105]);
+
+// hrPrinterDetectedErrorState bits that mean the printer can't print right
+// now. Low paper/toner, near-full output and overdue maintenance are only
+// warnings (most of our fleet sits at "low toner" permanently), and no-toner
+// is already shown by the supply levels. Bit 0 is the MSB of the first byte.
+const FAULT_BITS: { byte: number; mask: number; label: string }[] = [
+  { byte: 0, mask: 0x40, label: "Out of paper" },
+  { byte: 0, mask: 0x08, label: "Door open" },
+  { byte: 0, mask: 0x04, label: "Paper jam" },
+  { byte: 0, mask: 0x02, label: "Offline" },
+  { byte: 0, mask: 0x01, label: "Service requested" },
+  { byte: 1, mask: 0x80, label: "Input tray missing" },
+  { byte: 1, mask: 0x40, label: "Output tray missing" },
+  { byte: 1, mask: 0x20, label: "Cartridge missing" },
+  { byte: 1, mask: 0x08, label: "Output tray full" },
+];
 
 // prtMarkerSuppliesType enum (subset)
 const SUPPLY_TYPE_MAP: Record<number, { label: string; bucket: string }> = {
@@ -44,6 +70,8 @@ export interface SupplyReading {
 export interface PrinterPollResult {
   online: boolean;
   error?: string;
+  // Fault reported by the printer itself (jam, door open, …), null when fine.
+  alert: string | null;
   supplies: SupplyReading[];
 }
 
@@ -151,16 +179,47 @@ export async function pollPrinter(
       trayIndex++;
     }
 
-    return { online: true, supplies };
+    const alert = await readFault(session).catch(() => null);
+
+    return { online: true, alert, supplies };
   } catch (err) {
     return {
       online: false,
       error: err instanceof Error ? err.message : "Unknown SNMP error",
+      alert: null,
       supplies: [],
     };
   } finally {
     session.close();
   }
+}
+
+// Prefers the vendor's own text from critical prtAlertTable entries (e.g.
+// "Paper jam in Tray 2"), falling back to the generic error-state bits.
+async function readFault(session: ReturnType<typeof snmp.createSession>): Promise<string | null> {
+  const alertTable = await tableWalk(session, OID_ALERT_TABLE).catch(() => ({}));
+  const descriptions = new Set<string>();
+  for (const row of Object.values(alertTable)) {
+    // prtAlertSeverityLevel(2), prtAlertCode(7), prtAlertDescription(8)
+    if (toNumber(row["2"]) !== ALERT_SEVERITY_CRITICAL) continue;
+    if (SUPPLY_LEVEL_ALERT_CODES.has(toNumber(row["7"]))) continue;
+    const description = toText(row["8"]);
+    if (description) descriptions.add(description);
+  }
+  if (descriptions.size) return [...descriptions].join(" · ");
+
+  const varbinds = await new Promise<Varbind[]>((resolve, reject) => {
+    session.get([OID_DETECTED_ERROR_STATE, OID_DEVICE_STATUS], (error: Error | null, vbs?: Varbind[]) => {
+      if (error) reject(error);
+      else resolve(vbs ?? []);
+    });
+  });
+  const errorState = Buffer.isBuffer(varbinds[0]?.value) ? varbinds[0].value : Buffer.alloc(0);
+  const labels = FAULT_BITS.filter((b) => ((errorState[b.byte] ?? 0) & b.mask) !== 0).map((b) => b.label);
+  if (labels.length) return labels.join(" · ");
+
+  if (toNumber(varbinds[1]?.value) === DEVICE_STATUS_DOWN) return "Printer down";
+  return null;
 }
 
 type TableRow = Record<string, unknown>;
