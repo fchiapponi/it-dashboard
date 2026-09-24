@@ -155,6 +155,14 @@ function printerChipStyle(printer: FaultLike & { supplies: SupplyLike[] }): CSSP
   return chipStyle(printer.status);
 }
 
+// Cartridge part number from the supply name, e.g. "Cyan Ink Cartridge
+// T08H2" → "T08H2", "Black Ink Supply Unit T13L1/T15R1/T13M1" →
+// "T13L1/T15R1/T13M1" (Epson lists every compatible part).
+function supplyCode(supply: { name: string }): string | null {
+  const last = supply.name.replace(/\s*\(\d+\)$/, "").trim().split(/\s+/).pop() ?? "";
+  return /\d/.test(last) && /[a-z]/i.test(last) ? last : null;
+}
+
 function supplyShortLabel(supply: { name: string; type: string }): string {
   const lower = supply.name.toLowerCase();
   if (supply.type === "ink" || supply.type === "toner") {
@@ -191,10 +199,10 @@ export default function TvDashboardPage() {
     const allToner = p.status === "online" && !fault ? p.supplies.filter(isTonerLike) : [];
     // When a card is flagged for low/empty ink, show only the colors that are
     // running out so the one to replace stands out.
-    const tonerSupplies =
-      minTonerPercent(p) < LOW_SUPPLY_THRESHOLD
-        ? allToner.filter((s) => s.levelPercent !== null && s.levelPercent < LOW_SUPPLY_THRESHOLD)
-        : allToner;
+    const lowInkOnly = minTonerPercent(p) < LOW_SUPPLY_THRESHOLD;
+    const tonerSupplies = lowInkOnly
+      ? allToner.filter((s) => s.levelPercent !== null && s.levelPercent < LOW_SUPPLY_THRESHOLD)
+      : allToner;
     const baseLabelCounts = tonerSupplies.reduce<Record<string, number>>((acc, s) => {
       const base = supplyShortLabel(s);
       acc[base] = (acc[base] ?? 0) + 1;
@@ -229,12 +237,19 @@ export default function TvDashboardPage() {
           </div>
         )}
         {tonerSupplies.length > 0 && (
-          <div className="no-scrollbar mt-1.5 flex flex-nowrap gap-x-2.5 overflow-x-auto">
+          <div
+            className={
+              lowInkOnly
+                ? "mt-1.5 flex flex-wrap gap-x-2.5 gap-y-0.5"
+                : "no-scrollbar mt-1.5 flex flex-nowrap gap-x-2.5 overflow-x-auto"
+            }
+          >
             {tonerSupplies.map((s) => {
               const base = supplyShortLabel(s);
               const color = swatchColor(base);
               baseLabelSeen[base] = (baseLabelSeen[base] ?? 0) + 1;
               const label = baseLabelCounts[base] > 1 ? `${base}${baseLabelSeen[base]}` : base;
+              const code = lowInkOnly ? supplyCode(s) : null;
               return (
                 <span
                   key={s.id}
@@ -247,6 +262,7 @@ export default function TvDashboardPage() {
                     style={{ background: color, boxShadow: `0 0 4px ${color}` }}
                   />
                   {label} {s.levelPercent === null ? "N/A" : `${s.levelPercent}%`}
+                  {code && <span className="text-[var(--text-dim)]">{code}</span>}
                 </span>
               );
             })}
