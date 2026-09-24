@@ -24,7 +24,7 @@ export async function register() {
 
   await syncDevicesFromConfig().catch((err) => console.error("[poller] device sync error", err));
 
-  const printerIntervalMin = Math.max(1, Math.round(Number(process.env.PRINTER_POLL_INTERVAL_MS ?? 300000) / 60000));
+  const printerIntervalMin = Math.max(1, Math.round(Number(process.env.PRINTER_POLL_INTERVAL_MS ?? 60000) / 60000));
   const cameraIntervalMin = Math.max(1, Math.round(Number(process.env.CAMERA_POLL_INTERVAL_MS ?? 60000) / 60000));
   const serverIntervalMin = Math.max(1, Math.round(Number(process.env.SERVER_POLL_INTERVAL_MS ?? 60000) / 60000));
 
