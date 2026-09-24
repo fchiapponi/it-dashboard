@@ -88,6 +88,7 @@ const PINNED_PRINTERS = new Set([
   "Aurora",
   "Focolare",
   "Fiammetta",
+  "MacDermid",
 ]);
 
 type FaultLike = { status: Status; alert: string | null; alertLevel: "error" | "warning" | null };
@@ -187,7 +188,13 @@ export default function TvDashboardPage() {
   function renderPrinterCard(p: (typeof sortedPrinters)[number]) {
     const faultLevel = printerFault(p);
     const fault = faultLevel ? p.alert : null;
-    const tonerSupplies = p.status === "online" && !fault ? p.supplies.filter(isTonerLike) : [];
+    const allToner = p.status === "online" && !fault ? p.supplies.filter(isTonerLike) : [];
+    // When a card is flagged for low/empty ink, show only the colors that are
+    // running out so the one to replace stands out.
+    const tonerSupplies =
+      minTonerPercent(p) < LOW_SUPPLY_THRESHOLD
+        ? allToner.filter((s) => s.levelPercent !== null && s.levelPercent < LOW_SUPPLY_THRESHOLD)
+        : allToner;
     const baseLabelCounts = tonerSupplies.reduce<Record<string, number>>((acc, s) => {
       const base = supplyShortLabel(s);
       acc[base] = (acc[base] ?? 0) + 1;
