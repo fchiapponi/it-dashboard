@@ -421,7 +421,7 @@ export default function TvDashboardPage() {
           >
             <div
               className="no-scrollbar grid content-start gap-0.5 overflow-y-auto p-1"
-              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))" }}
+              style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}
             >
               {!sortedServers.length && (
                 <p className="text-xs text-[var(--text-dim)]">No servers configured.</p>
