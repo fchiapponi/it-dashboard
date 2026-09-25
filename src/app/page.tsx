@@ -102,7 +102,7 @@ function printerFault(printer: FaultLike): "error" | "warning" | null {
 
 const FAULT_RANK = { error: 0, warning: 1, none: 2 } as const;
 
-// Pinned printers first, then offline/error printers, then online ones
+// Offline/error printers first, then pinned printers, then online ones
 // reporting a fault (errors before paper warnings), then the rest ordered by
 // their lowest remaining ink/toner level (most urgent first).
 function sortPrintersByUrgency<T extends FaultLike & { name: string; supplies: SupplyLike[] }>(
@@ -110,12 +110,12 @@ function sortPrintersByUrgency<T extends FaultLike & { name: string; supplies: S
 ): T[] {
   if (!printers) return [];
   return [...printers].sort((a, b) => {
-    const aPinned = PINNED_PRINTERS.has(a.name) ? 0 : 1;
-    const bPinned = PINNED_PRINTERS.has(b.name) ? 0 : 1;
-    if (aPinned !== bPinned) return aPinned - bPinned;
     const aOffline = a.status !== "online" ? 0 : 1;
     const bOffline = b.status !== "online" ? 0 : 1;
     if (aOffline !== bOffline) return aOffline - bOffline;
+    const aPinned = PINNED_PRINTERS.has(a.name) ? 0 : 1;
+    const bPinned = PINNED_PRINTERS.has(b.name) ? 0 : 1;
+    if (aPinned !== bPinned) return aPinned - bPinned;
     const aFault = FAULT_RANK[printerFault(a) ?? "none"];
     const bFault = FAULT_RANK[printerFault(b) ?? "none"];
     if (aFault !== bFault) return aFault - bFault;
@@ -185,10 +185,8 @@ export default function TvDashboardPage() {
   const serversOnline = servers?.filter((s) => s.status === "online").length ?? 0;
 
   const sortedPrinters = sortPrintersByUrgency(printers);
-  const pinnedPrinters = sortedPrinters.filter((p) => PINNED_PRINTERS.has(p.name));
-  const restPrinters = sortedPrinters.filter((p) => !PINNED_PRINTERS.has(p.name));
-  const offlinePrinters = restPrinters.filter((p) => p.status !== "online");
-  const onlinePrinters = restPrinters.filter((p) => p.status === "online");
+  const offlinePrinters = sortedPrinters.filter((p) => p.status !== "online");
+  const onlinePrinters = sortedPrinters.filter((p) => p.status === "online");
   const sortedAccessPoints = sortProblemsFirstThenByClients(accessPoints);
   const sortedServers = sortProblemsFirst(servers);
   const sortedCameras = sortProblemsFirst(cameras);
@@ -272,12 +270,16 @@ export default function TvDashboardPage() {
     );
   }
 
-  const printersWithLowSupply =
-    printers?.filter((p) =>
-      p.supplies.some(
-        (s) => isTonerLike(s) && s.levelPercent !== null && s.levelPercent > 0 && s.levelPercent < LOW_SUPPLY_THRESHOLD,
-      ),
-    ) ?? [];
+  // Printers whose card is amber: online, a paper warning or ink/toner under
+  // the threshold, and nothing red (error fault or an empty supply).
+  const printersWithAlert =
+    printers?.filter((p) => {
+      if (p.status !== "online") return false;
+      const fault = printerFault(p);
+      const minPercent = minTonerPercent(p);
+      if (fault === "error" || minPercent <= 0) return false;
+      return fault === "warning" || minPercent < LOW_SUPPLY_THRESHOLD;
+    }) ?? [];
   const printersWithEmptySupply =
     printers?.filter((p) => p.supplies.some((s) => isTonerLike(s) && s.levelPercent === 0)) ?? [];
 
@@ -325,10 +327,10 @@ export default function TvDashboardPage() {
           tone="accent"
         />
         <StatTile
-          label="Supply low"
-          value={printersWithLowSupply.length}
+          label="Printer alert"
+          value={printersWithAlert.length}
           icon={<AlertTriangle className="h-4 w-4" />}
-          tone={printersWithLowSupply.length ? "amber" : "accent"}
+          tone={printersWithAlert.length ? "amber" : "accent"}
         />
         <StatTile
           label="Supply empty"
@@ -386,19 +388,6 @@ export default function TvDashboardPage() {
           <div className="no-scrollbar flex h-full flex-col gap-1.5 overflow-y-auto p-2">
             {!printers?.length && (
               <p className="text-xs text-[var(--text-dim)]">No printers configured.</p>
-            )}
-            {pinnedPrinters.length > 0 && (
-              <>
-                <div
-                  className="grid gap-1.5"
-                  style={{ gridTemplateColumns: "repeat(auto-fill, minmax(13rem, 1fr))" }}
-                >
-                  {pinnedPrinters.map((p) => renderPrinterCard(p))}
-                </div>
-                {restPrinters.length > 0 && (
-                  <div className="my-0.5 border-t border-[var(--border)]" />
-                )}
-              </>
             )}
             {offlinePrinters.length > 0 && (
               <>
