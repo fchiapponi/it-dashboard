@@ -359,7 +359,7 @@ export default function TvDashboardPage() {
         >
           <div
             className="no-scrollbar grid h-full content-start gap-0.5 overflow-y-auto p-1"
-            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(7rem, 1fr))" }}
+            style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}
           >
             {!accessPoints?.length && (
               <p className="text-xs text-[var(--text-dim)]">No access points found.</p>
