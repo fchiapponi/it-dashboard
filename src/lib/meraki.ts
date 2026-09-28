@@ -30,7 +30,7 @@ interface MerakiClient {
 }
 
 let cache: { at: number; data: AccessPointDTO[] } | null = null;
-const CACHE_TTL_MS = 20000;
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 function stripAssetSuffix(name: string): string {
   return name.replace(/_SAP@.*$/i, "");
