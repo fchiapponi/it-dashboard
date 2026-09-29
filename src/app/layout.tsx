@@ -10,7 +10,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "TASIS // Sys.Monitor",
-  description: "Team dashboard for monitoring printers, cameras and calendar",
+  description: "Team dashboard for monitoring printers, cameras, servers and access points",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

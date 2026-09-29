@@ -5,8 +5,6 @@ import type {
   PrinterDTO,
   CameraDTO,
   ServerDTO,
-  CalendarEventDTO,
-  CalendarStatusDTO,
 } from "@/lib/types";
 import type { AccessPointDTO } from "@/lib/meraki";
 
@@ -30,14 +28,4 @@ export function useAccessPoints() {
 
 export function useServers() {
   return useSWR<ServerDTO[]>("/api/servers", fetcher, { refreshInterval: 30000 });
-}
-
-export function useCalendarStatus() {
-  return useSWR<CalendarStatusDTO>("/api/calendar/status", fetcher, { refreshInterval: 60000 });
-}
-
-export function useCalendarEvents(enabled: boolean) {
-  return useSWR<CalendarEventDTO[]>(enabled ? "/api/calendar/events" : null, fetcher, {
-    refreshInterval: 60000,
-  });
 }

@@ -24,7 +24,6 @@ model Printer {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   supplies       PrinterSupply[]
-  readings       PrinterReading[]
 }
 
 model PrinterSupply {
@@ -40,17 +39,6 @@ model PrinterSupply {
   updatedAt     DateTime @updatedAt
 
   @@unique([printerId, name])
-}
-
-model PrinterReading {
-  id                String   @id @default(cuid())
-  printer           Printer  @relation(fields: [printerId], references: [id], onDelete: Cascade)
-  printerId         String
-  timestamp         DateTime @default(now())
-  status            String
-  suppliesSnapshot  String   // JSON-encoded array of {name,type,levelPercent}
-
-  @@index([printerId, timestamp])
 }
 
 model Camera {
@@ -82,16 +70,4 @@ model Server {
   lastError     String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-}
-
-model CalendarIntegration {
-  id             String    @id @default(cuid())
-  provider       String    @default("google")
-  connectedEmail String?
-  accessToken    String?
-  refreshToken   String?
-  expiryDate     DateTime?
-  calendarId     String    @default("primary")
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
 }

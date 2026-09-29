@@ -45,18 +45,3 @@ export interface ServerDTO {
   lastSeenAt: string | null;
   lastError: string | null;
 }
-
-export interface CalendarEventDTO {
-  id: string;
-  title: string;
-  start: string;
-  end: string;
-  allDay: boolean;
-  location?: string;
-  attendees?: string[];
-}
-
-export interface CalendarStatusDTO {
-  connected: boolean;
-  email?: string;
-}

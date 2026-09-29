@@ -55,18 +55,6 @@ export async function pollPrinterById(printerId: string) {
         },
       });
     }
-
-    if (result.supplies.length) {
-      await tx.printerReading.create({
-        data: {
-          printerId: printer.id,
-          status,
-          suppliesSnapshot: JSON.stringify(
-            result.supplies.map((s) => ({ name: s.name, type: s.type, levelPercent: s.levelPercent })),
-          ),
-        },
-      });
-    }
   });
 
   return { status, error: result.error, suppliesCount: result.supplies.length };

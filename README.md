@@ -7,7 +7,7 @@ No login, no settings UI — everything is either polled directly from the devic
 ## Stack
 
 - **Next.js 16** (App Router) + TypeScript + Tailwind CSS 4
-- **Prisma 6** + SQLite — stores printer/camera inventory, live status and printer supply-level history
+- **Prisma 6** + SQLite — stores printer/camera/server inventory and live status
 - **net-snmp** — queries printers over the standard Printer-MIB (RFC 3805) for toner/ink/paper levels
 - **onvif** — probes IP cameras over ONVIF to confirm they're reachable
 - **Cisco Meraki Dashboard API** — pulls live access point status directly from the cloud (no local polling needed)
@@ -54,7 +54,6 @@ For day-to-day development (hot reload) use `npm run dev` instead of `build`+`st
 | `CAMERA_POLL_INTERVAL_MS` | How often it re-probes every camera over ONVIF (default 60000 = 1 min). |
 | `MERAKI_API_KEY` | Cisco Meraki Dashboard API key (Dashboard → your profile icon → *My profile* → *API access* → generate). Leave empty to skip access points entirely. |
 | `MERAKI_ORG_ID` | The Meraki organization ID that owns the access points. Find it by calling `https://api.meraki.com/api/v1/organizations` with the API key, or from the dashboard URL. |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Google Calendar OAuth credentials. The calendar integration is currently built but not shown on the dashboard (see **Currently disabled** below) — these only matter if you re-enable it. |
 
 ## Adding or removing printers and cameras
 
@@ -105,13 +104,13 @@ src/
   app/
     page.tsx                the entire dashboard (single page, no routing)
     api/                     REST endpoints backing the dashboard
-      printers/              CRUD + poll-now + poll-all
-      cameras/                CRUD + poll-now + poll-all + snapshot proxy
+      printers/              GET (list + supply levels)
+      cameras/                GET (list)
+      servers/                GET (list)
       access-points/          GET (proxies the Meraki API, 20s cache)
-      calendar/               OAuth flow + events (built, not currently shown)
   components/
     layout/                  Clock, Countdowns (17:00 / Friday 17:00 timers)
-    ui/                      TerminalPanel, StatTile, StatusBadge, LevelBar
+    ui/                      TerminalPanel, StatTile, StatusBadge
   config/devices.ts          <- single source of truth for printers & cameras
   lib/
     snmp-printer.ts           SNMP walk + Printer-MIB parsing
@@ -122,12 +121,11 @@ src/
     device-sync.ts             reconciles the DB against config/devices.ts
     crypto.ts                  encrypts SNMP/camera credentials at rest
   instrumentation.ts          starts the cron polling loop on boot
-prisma/schema.prisma          Printer, Camera, PrinterSupply, PrinterReading, CalendarIntegration
+prisma/schema.prisma          Printer, Camera, PrinterSupply, Server
 ```
 
 ## Currently disabled
 
-- **Calendar**: fully implemented (OAuth, event fetching) but not rendered on the dashboard — removed from the UI to keep the layout focused on printers/cameras/access points. Re-add a panel in `page.tsx` using `useCalendarStatus`/`useCalendarEvents` from `src/lib/hooks.ts` to bring it back.
 - **Camera video**: cameras show reachability status only, not a live snapshot/stream — deliberate, to keep the dashboard lightweight and fast at high device counts.
 
 ## Known quirks
