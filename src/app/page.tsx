@@ -88,7 +88,6 @@ const PINNED_PRINTERS = new Set([
   "Aurora",
   "Focolare",
   "Fiammetta",
-  "MacDermid",
 ]);
 
 type FaultLike = { status: Status; alert: string | null; alertLevel: "error" | "warning" | null };
