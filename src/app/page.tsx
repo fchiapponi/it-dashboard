@@ -194,13 +194,21 @@ export default function TvDashboardPage() {
   function renderPrinterCard(p: (typeof sortedPrinters)[number]) {
     const faultLevel = printerFault(p);
     const fault = faultLevel ? p.alert : null;
-    const allToner = p.status === "online" && !fault ? p.supplies.filter(isTonerLike) : [];
+    // Under a fault only the empty cartridges stay visible: vendor messages like
+    // "You need to replace Ink Supply Unit." don't say which color.
+    const allToner =
+      p.status !== "online"
+        ? []
+        : p.supplies.filter(isTonerLike).filter((s) => !fault || s.levelPercent === 0);
     // When a card is flagged for low/empty ink, show only the colors that are
     // running out so the one to replace stands out.
     const lowInkOnly = minTonerPercent(p) < LOW_SUPPLY_THRESHOLD;
     const tonerSupplies = lowInkOnly
       ? allToner.filter((s) => s.levelPercent !== null && s.levelPercent < LOW_SUPPLY_THRESHOLD)
       : allToner;
+    // An ink/toner fault is fully explained by the empty cartridge chip, so its
+    // vendor text is dropped; other faults (jam, door open, …) keep theirs.
+    const faultText = fault && tonerSupplies.length > 0 && /\b(ink|toner)\b/i.test(fault) ? null : fault;
     const baseLabelCounts = tonerSupplies.reduce<Record<string, number>>((acc, s) => {
       const base = supplyShortLabel(s);
       acc[base] = (acc[base] ?? 0) + 1;
@@ -225,13 +233,13 @@ export default function TvDashboardPage() {
             }
           />
         </div>
-        {fault && (
+        {faultText && (
           <div
-            title={fault}
+            title={faultText}
             className="mt-1.5 truncate text-[0.625rem] font-bold"
             style={{ color: statusColor(faultLevel ?? "error") }}
           >
-            {fault}
+            {faultText}
           </div>
         )}
         {tonerSupplies.length > 0 && (
