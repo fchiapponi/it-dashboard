@@ -12,6 +12,11 @@ export interface ServerConfig {
   ipAddress: string;
 }
 
+export interface AccessPointConfig {
+  name: string;
+  ipAddress: string;
+}
+
 export interface CameraConfig {
   name: string;
   protocol: "onvif" | "rtsp" | "mjpeg";
@@ -174,3 +179,7 @@ export const SERVERS: ServerConfig[] = [
   { name: "172.25.2.45", ipAddress: "172.25.2.45" },
   { name: "172.25.201.200", ipAddress: "172.25.201.200" },
 ];
+
+// Only used when the Meraki API is unreachable: these get pinged instead.
+// While the API works, the AP list comes from Meraki.
+export const ACCESS_POINTS: AccessPointConfig[] = [];

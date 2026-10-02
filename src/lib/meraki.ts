@@ -1,7 +1,11 @@
+import { execFile } from "child_process";
 import { mapWithConcurrency } from "@/lib/concurrency";
+import { ACCESS_POINTS } from "@/config/devices";
 
 const MERAKI_API_BASE = "https://api.meraki.com/api/v1";
 const CLIENTS_FETCH_CONCURRENCY = 5;
+const PING_CONCURRENCY = 10;
+const PING_TIMEOUT_MS = 2000;
 
 export interface AccessPointDTO {
   serial: string;
@@ -39,6 +43,29 @@ function stripAssetSuffix(name: string): string {
 export async function fetchAccessPoints(): Promise<AccessPointDTO[]> {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.data;
 
+  try {
+    return await fetchAccessPointsFromMeraki();
+  } catch (err) {
+    const known = cache?.data ?? configuredAccessPoints();
+    if (known.length === 0) throw err;
+    return pingAccessPoints(known);
+  }
+}
+
+function configuredAccessPoints(): AccessPointDTO[] {
+  return ACCESS_POINTS.map((ap): AccessPointDTO => ({
+    serial: ap.ipAddress,
+    name: ap.name,
+    model: "",
+    status: "unknown",
+    tags: [],
+    lanIp: ap.ipAddress,
+    networkId: null,
+    clientCount: 0,
+  })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function fetchAccessPointsFromMeraki(): Promise<AccessPointDTO[]> {
   const apiKey = process.env.MERAKI_API_KEY;
   const orgId = process.env.MERAKI_ORG_ID;
   if (!apiKey || !orgId) {
@@ -97,6 +124,28 @@ export async function fetchAccessPoints(): Promise<AccessPointDTO[]> {
 
   cache = { at: Date.now(), data: accessPoints };
   return accessPoints;
+}
+
+function ping(host: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    // Windows ping uses -n instead of -c, and exits 0 even on "Destination
+    // host unreachable" — only a reply line (containing "TTL=") means it's up.
+    const isWindows = process.platform === "win32";
+    const args = isWindows ? ["-n", "1", host] : ["-c", "1", host];
+    execFile("ping", args, { timeout: PING_TIMEOUT_MS }, (err, stdout) =>
+      resolve(!err && (!isWindows || /TTL=/i.test(stdout))),
+    );
+  });
+}
+
+async function pingAccessPoints(accessPoints: AccessPointDTO[]): Promise<AccessPointDTO[]> {
+  const results = await mapWithConcurrency(accessPoints, PING_CONCURRENCY, async (ap) => {
+    if (!ap.lanIp) return { ...ap, status: "unknown" as const };
+    return { ...ap, status: (await ping(ap.lanIp)) ? ("online" as const) : ("offline" as const) };
+  });
+  return results.map((r, i) =>
+    r.status === "fulfilled" ? r.value : { ...accessPoints[i], status: "unknown" as const },
+  );
 }
 
 function nextPageUrl(linkHeader: string | null): string | null {
