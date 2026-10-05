@@ -1,8 +1,8 @@
 @echo off
 rem Windows version of "Start Dashboard.command". Double-click to install
 rem (first run only), build and start the TASIS dashboard.
-rem To run it permanently (start at boot, restart on crash, self-update),
-rem double-click windows\install.bat once instead.
+rem To start it automatically at login: Win+R, shell:startup, and put a
+rem shortcut to this file in that folder.
 
 cd /d "%~dp0"
 set PORT=3050
@@ -14,8 +14,8 @@ where node >nul 2>&1 || (
   exit /b 1
 )
 
-rem When the scheduled task from windows\install.bat is already running the
-rem dashboard, just open it instead of starting a second copy.
+rem When the dashboard is already running, just open it instead of
+rem starting a second copy.
 netstat -ano | findstr /r /c:":%PORT% .*LISTENING" >nul && (
   start "" http://localhost:%PORT%
   exit /b 0
