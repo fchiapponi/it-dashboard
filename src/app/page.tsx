@@ -335,7 +335,7 @@ export default function TvDashboardPage() {
                   {list.cards.map((card) => (
                     <div
                       key={card.id}
-                      className="glass-chip rounded-[0.25rem] px-2 py-1 text-base leading-snug text-[var(--text-primary)]"
+                      className="glass-chip rounded-[0.25rem] px-2 py-1 text-sm leading-snug text-[var(--text-primary)]"
                     >
                       {card.name}
                     </div>
