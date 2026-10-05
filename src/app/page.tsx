@@ -154,6 +154,8 @@ export default function TvDashboardPage() {
   const { data: printers } = usePrinters();
   const { data: accessPoints } = useAccessPoints();
   const { data: trelloLists } = useTrello();
+  // Finished work isn't worth screen space on the TV.
+  const openTrelloLists = trelloLists?.filter((list) => list.name.trim().toLowerCase() !== "done");
 
   const printersOnline = printers?.filter((p) => p.status === "online").length ?? 0;
   const apsOnline = accessPoints?.filter((a) => a.status === "online").length ?? 0;
@@ -322,10 +324,10 @@ export default function TvDashboardPage() {
 
       <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
         <TerminalPanel title="trello board" bodyClassName="overflow-hidden p-0">
-          <div className="no-scrollbar h-full columns-2 gap-3 overflow-y-auto p-2 [column-fill:_balance]">
-            {!trelloLists?.length && <p className="text-base text-[var(--text-dim)]">No Trello data.</p>}
-            {trelloLists?.map((list) => (
-              <div key={list.id} className="glass-panel mb-3 break-inside-avoid rounded-[6px]">
+          <div className="no-scrollbar flex h-full flex-col gap-3 overflow-y-auto p-2">
+            {!openTrelloLists?.length && <p className="text-base text-[var(--text-dim)]">No Trello data.</p>}
+            {openTrelloLists?.map((list) => (
+              <div key={list.id} className="glass-panel shrink-0 rounded-[6px]">
                 <div className="truncate border-b border-white/10 px-2.5 py-1 text-xs tracking-[0.1em] text-[var(--text-dim)] uppercase">
                   {list.name} <span className="text-[var(--text-faint)]">({list.cards.length})</span>
                 </div>
