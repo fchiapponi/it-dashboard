@@ -43,7 +43,7 @@ export const PRINTERS: PrinterConfig[] = [
   { name: "Gatto P2", ipAddress: "172.25.200.9", snmpVersion: 1 },
   { name: "De Nobili Dorm", ipAddress: "172.25.200.11" },
   { name: "172.25.200.12", ipAddress: "172.25.200.12" },
-  { name: "172.25.200.30", ipAddress: "172.25.200.30" },
+  { name: "Photolab", ipAddress: "172.25.200.30" },
   { name: "Censi", ipAddress: "172.25.200.33" },
   { name: "172.25.200.35", ipAddress: "172.25.200.35" },
   { name: "172.25.200.38", ipAddress: "172.25.200.38" },
