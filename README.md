@@ -95,6 +95,15 @@ This installs two `launchd` LaunchAgents (run once, safe to re-run after moving 
 
 So you keep developing and pushing from your own machine as usual — the TV Mac picks up the change on its own within a few minutes, no one needs to touch it. Logs land in `dashboard.log` and `updater.log` next to the repo. To remove it: `launchctl bootout gui/$(id -u)/com.tasis.dashboard gui/$(id -u)/com.tasis.dashboard-updater`.
 
+### Windows server
+
+`windows/` does the same on Windows with two scheduled tasks. Copy the project folder and a working `.env` onto the server, install [Node.js LTS](https://nodejs.org) and [Git](https://git-scm.com/download/win), then double-click **`windows\install.bat`** once (it asks for administrator rights):
+
+- **TASIS Dashboard** — runs `npm run start` on port 3050 as SYSTEM, starts at boot without anyone logging in, restarts automatically if it exits.
+- **TASIS Dashboard Updater** — every 5 minutes, checks `origin/main`; if there are new commits, pulls, runs `npm install` / `prisma generate` / `prisma migrate deploy` / `npm run build`, then restarts the dashboard.
+
+A folder copied by hand is linked to the GitHub repo on first install (only tracked files are replaced; `.env`, the database and `node_modules` stay). Logs land in `dashboard.log` and `updater.log`. To remove it, as administrator: `Unregister-ScheduledTask 'TASIS Dashboard','TASIS Dashboard Updater'`. `Start Dashboard.bat` still works as a manual fallback, and just opens the browser if the task is already running.
+
 `Start Dashboard.command` still works as a manual fallback (e.g. first-time setup, or a machine not running the LaunchAgents) — it just opens the browser tab if the dashboard is already up.
 
 ## Project structure
