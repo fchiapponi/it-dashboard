@@ -67,7 +67,7 @@ export const PRINTERS: PrinterConfig[] = [
   { name: "Music 1", ipAddress: "172.25.200.130" },
   { name: "Del Sole", ipAddress: "172.25.200.141" },
   { name: "Hadsall Faculty", ipAddress: "172.25.200.192" },
-  { name: "172.25.200.194", ipAddress: "172.25.200.194" },
+  { name: "Science", ipAddress: "172.25.200.194" },
   { name: "Monticello Faculty", ipAddress: "172.25.200.205" },
   { name: "Palmer", ipAddress: "172.25.200.206" },
   { name: "Monticello Dorm", ipAddress: "172.25.200.207" },
