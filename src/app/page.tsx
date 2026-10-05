@@ -320,7 +320,7 @@ export default function TvDashboardPage() {
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[1fr_1.6fr] gap-3">
+      <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
         <TerminalPanel title="trello board" bodyClassName="overflow-hidden p-0">
           <div className="no-scrollbar h-full columns-2 gap-3 overflow-y-auto p-2 [column-fill:_balance]">
             {!trelloLists?.length && <p className="text-xs text-[var(--text-dim)]">No Trello data.</p>}
