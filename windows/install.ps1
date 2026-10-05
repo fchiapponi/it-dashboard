@@ -51,7 +51,9 @@ Get-ChildItem $startupDir -Filter "Start Dashboard*.lnk" -ErrorAction SilentlyCo
   Write-Host "Removed old startup shortcut $($_.Name)"
 }
 
-Run "npm install"
+# npm ci starts node_modules from scratch: one copied from a Mac lacks the
+# Windows command shims (prisma.cmd, next.cmd, ...).
+Run "npm ci"
 Run "npx prisma generate"
 Run "npx prisma migrate deploy"
 Run "npm run build"
