@@ -1,0 +1,283 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------- people
+
+model User {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  name        String
+  image       String?
+  role        String    @default("user") // user | admin
+  createdAt   DateTime  @default(now())
+  lastLoginAt DateTime?
+
+  sessions          Session[]
+  memberships       Membership[]
+  ticketsRequested  Ticket[]           @relation("TicketRequester")
+  ticketsAssigned   Ticket[]           @relation("TicketAssignee")
+  ticketActivity    TicketActivity[]
+  assetActivity     AssetActivity[]
+  stockMovements    StockMovement[]
+  visitorsHosted    Visitor[]          @relation("VisitorHost")
+  visitorsCreated   Visitor[]          @relation("VisitorCreatedBy")
+  deliveries        Delivery[]         @relation("DeliveryRecipient")
+  deliveriesLogged  Delivery[]         @relation("DeliveryReceivedBy")
+  eventsOrganized   Event[]
+}
+
+model Session {
+  id        String   @id // sha256 of the cookie token, never the token itself
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ----------------------------------------------------------- departments
+
+model Department {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  slug        String       @unique
+  color       String       @default("#2563eb")
+  description String?
+  takesTickets Boolean     @default(true) // shown as a choice on "New ticket"
+  createdAt   DateTime     @default(now())
+
+  memberships Membership[]
+  categories  Category[]
+  tickets     Ticket[]
+  assets      Asset[]
+  supplies    Supply[]
+}
+
+// A user who is a member of a department is an agent for it: they work its
+// ticket queue and manage its inventory.
+model Membership {
+  userId       String
+  departmentId String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@id([userId, departmentId])
+}
+
+model Category {
+  id           String     @id @default(cuid())
+  departmentId String
+  name         String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  tickets      Ticket[]
+
+  @@unique([departmentId, name])
+}
+
+model Location {
+  id       String    @id @default(cuid())
+  name     String    @unique // e.g. "Palazzo Main – Room 101"
+  tickets  Ticket[]
+  assets   Asset[]
+  supplies Supply[]
+  events   Event[]
+}
+
+// --------------------------------------------------------------- tickets
+
+model Ticket {
+  id           String    @id @default(cuid())
+  number       Int       @unique
+  title        String
+  description  String
+  status       String    @default("open") // open | in_progress | waiting | resolved | closed
+  priority     String    @default("normal") // low | normal | high | urgent
+  departmentId String
+  categoryId   String?
+  locationId   String?
+  requesterId  String
+  assigneeId   String?
+  assetId      String?
+  eventId      String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  resolvedAt   DateTime?
+
+  department Department       @relation(fields: [departmentId], references: [id])
+  category   Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  location   Location?        @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  requester  User             @relation("TicketRequester", fields: [requesterId], references: [id])
+  assignee   User?            @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  asset      Asset?           @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  event      Event?           @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  activity   TicketActivity[]
+  stockMovements StockMovement[]
+
+  @@index([departmentId, status])
+  @@index([requesterId])
+}
+
+model TicketActivity {
+  id        String   @id @default(cuid())
+  ticketId  String
+  authorId  String?
+  kind      String   @default("comment") // comment | note (agents only) | event (system)
+  body      String
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User?  @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+}
+
+// ------------------------------------------------------------- inventory
+
+model Asset {
+  id            String    @id @default(cuid())
+  tag           String    @unique // printed on the QR label, e.g. TAS-00042
+  name          String
+  type          String // Laptop, iPad, Projector, ...
+  manufacturer  String?
+  model         String?
+  serialNumber  String?
+  status        String    @default("in_use") // in_use | in_stock | repair | retired
+  departmentId  String
+  locationId    String?
+  assignedTo    String? // person (name or email) the asset is handed out to
+  purchaseDate  DateTime?
+  warrantyUntil DateTime?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  department Department      @relation(fields: [departmentId], references: [id])
+  location   Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  tickets    Ticket[]
+  activity   AssetActivity[]
+
+  @@index([departmentId])
+}
+
+model AssetActivity {
+  id        String   @id @default(cuid())
+  assetId   String
+  actorId   String?
+  body      String
+  createdAt DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([assetId])
+}
+
+model Supply {
+  id           String   @id @default(cuid())
+  name         String
+  sku          String?
+  unit         String   @default("pcs")
+  quantity     Int      @default(0)
+  minQuantity  Int      @default(0) // flagged as low stock at or below this
+  departmentId String
+  locationId   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  department Department      @relation(fields: [departmentId], references: [id])
+  location   Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  movements  StockMovement[]
+}
+
+model StockMovement {
+  id        String   @id @default(cuid())
+  supplyId  String
+  delta     Int
+  reason    String?
+  actorId   String?
+  ticketId  String?
+  createdAt DateTime @default(now())
+
+  supply Supply  @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+  actor  User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  ticket Ticket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([supplyId])
+}
+
+// ------------------------------------------------------------- reception
+
+model Visitor {
+  id           String    @id @default(cuid())
+  name         String
+  company      String?
+  email        String?
+  phone        String?
+  purpose      String?
+  hostId       String?
+  hostName     String? // free text when the host has never logged in
+  badgeNumber  String?
+  expectedAt   DateTime? // set when pre-registered by staff
+  checkedInAt  DateTime?
+  checkedOutAt DateTime?
+  createdById  String
+  createdAt    DateTime  @default(now())
+
+  host      User? @relation("VisitorHost", fields: [hostId], references: [id], onDelete: SetNull)
+  createdBy User  @relation("VisitorCreatedBy", fields: [createdById], references: [id])
+
+  @@index([checkedInAt])
+  @@index([expectedAt])
+}
+
+model Delivery {
+  id             String    @id @default(cuid())
+  carrier        String?
+  trackingNumber String?
+  recipientId    String?
+  recipientName  String
+  description    String?
+  packages       Int       @default(1)
+  storageSpot    String? // where reception put it
+  status         String    @default("received") // received | collected | returned
+  receivedAt     DateTime  @default(now())
+  receivedById   String
+  collectedAt    DateTime?
+  collectedBy    String? // name of whoever actually picked it up
+  notes          String?
+
+  recipient  User? @relation("DeliveryRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+  receivedBy User  @relation("DeliveryReceivedBy", fields: [receivedById], references: [id])
+
+  @@index([status])
+  @@index([recipientId])
+}
+
+// ---------------------------------------------------------------- events
+
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime
+  locationId  String?
+  attendees   Int?
+  status      String   @default("requested") // requested | confirmed | cancelled
+  organizerId String
+  createdAt   DateTime @default(now())
+
+  location  Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  organizer User      @relation(fields: [organizerId], references: [id])
+  tickets   Ticket[]
+
+  @@index([startsAt])
+}
