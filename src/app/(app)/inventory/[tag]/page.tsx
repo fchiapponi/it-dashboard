@@ -1,15 +1,19 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Copy, Printer, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Copy, Printer, TriangleAlert } from "lucide-react";
 import { Badge, DeptBadge, Empty, PageHeader, Section } from "@/components/ui";
-import { fieldLabelsFor } from "@/lib/assets";
+import { fieldLabelsFor, hasAssignedTo, parseExtra, parseReadings } from "@/lib/assets";
 import { isAgentOf, requireUser } from "@/lib/auth";
 import { fmtDate, fmtDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { ipField } from "@/lib/printerSnmp";
 import { assetQrSvg } from "@/lib/qr";
 import { managedDepartments } from "@/lib/tickets";
-import { addAssetNote, updateAsset } from "../actions";
+import { addAssetNote, readPrinterDetails, updateAsset } from "../actions";
 import { AssetFields } from "../AssetFields";
+import { InkLevels } from "../InkLevels";
+import { PrinterButton } from "../PrinterButton";
 
 export default async function AssetPage({ params }: PageProps<"/inventory/[tag]">) {
   const user = await requireUser();
@@ -50,15 +54,23 @@ export default async function AssetPage({ params }: PageProps<"/inventory/[tag]"
     );
   }
 
-  const [departments, locations, qr, fieldLabels] = await Promise.all([
+  const readings = parseReadings(asset.readings);
+  const [departments, locations, qr, fieldLabels, showAssignedTo] = await Promise.all([
     managedDepartments(user),
     prisma.location.findMany({ orderBy: { name: "asc" } }),
     assetQrSvg(asset.tag),
-    fieldLabelsFor(asset.type),
+    fieldLabelsFor(asset.type, asset.departmentId),
+    hasAssignedTo(asset.departmentId, asset.type),
   ]);
 
   return (
     <>
+      <Link
+        href={`/inventory?dept=${asset.department.slug}&type=${encodeURIComponent(asset.type)}`}
+        className="mb-3 inline-flex items-center gap-1 text-sm text-dim hover:text-fg"
+      >
+        <ArrowLeft className="size-4" /> {asset.department.name} · {asset.type}
+      </Link>
       <PageHeader
         title={asset.name}
         subtitle={
@@ -83,9 +95,36 @@ export default async function AssetPage({ params }: PageProps<"/inventory/[tag]"
 
       <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
         <div className="min-w-0 space-y-6">
+          {ipField(parseExtra(asset.extra)) && (
+            <Section
+              title="Printer status"
+              actions={<PrinterButton action={readPrinterDetails.bind(null, asset.id)}>Read now</PrinterButton>}
+            >
+              {readings ? (
+                <div className="grid gap-6 p-5 sm:grid-cols-2">
+                  <InkLevels supplies={readings.supplies} />
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+                    {Object.entries(readings.fields).map(([k, v]) => (
+                      <Fragment key={k}>
+                        <dt className="text-dim">{k}</dt>
+                        <dd className="min-w-0 break-words">{v}</dd>
+                      </Fragment>
+                    ))}
+                    <dt className="text-dim">Last read</dt>
+                    <dd>{fmtDateTime(new Date(readings.readAt))}</dd>
+                  </dl>
+                </div>
+              ) : (
+                <Empty>Not read yet. Press “Read now”; it is also read automatically every hour.</Empty>
+              )}
+            </Section>
+          )}
+
           <Section title="Details">
             <form action={updateAsset.bind(null, asset.id)} className="space-y-4 p-5">
-              <AssetFields a={asset} departments={departments} locations={locations} fieldLabels={fieldLabels} />
+              <AssetFields a={asset} departments={departments} locations={locations} fieldLabels={fieldLabels} showAssignedTo={showAssignedTo}
+                readFromDevice={readings !== null}
+              />
               <div className="flex justify-end">
                 <button className="btn btn-primary">Save changes</button>
               </div>

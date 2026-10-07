@@ -33,13 +33,19 @@ export function AssetFields({
   locations,
   isNew,
   fieldLabels = [],
+  showAssignedTo = true,
+  readFromDevice = false,
 }: {
   a?: AssetDefaults;
   departments: Option[];
   locations: Option[];
   isNew?: boolean;
   fieldLabels?: string[];
+  showAssignedTo?: boolean;
+  /** Serial, manufacturer and model came from the printer: show them read-only. */
+  readFromDevice?: boolean;
 }) {
+  const device = readFromDevice ? { readOnly: true, title: "Read from the printer", className: "input bg-panel-muted text-dim" } : { className: "input" };
   const extra = parseExtra(a.extra);
   const rows: [string, string][] = [...Object.entries(extra), ...fieldLabels.filter((k) => !(k in extra)).map((k): [string, string] => [k, ""])];
   for (let i = 0; i < 2; i++) rows.push(["", ""]);
@@ -62,14 +68,14 @@ export function AssetFields({
           <input name="tag" placeholder="TAS-00001" className="input uppercase" />
         </Field>
       )}
-      <Field label="Serial number">
-        <input name="serialNumber" defaultValue={a.serialNumber ?? ""} className="input" />
+      <Field label={readFromDevice ? "Serial number (from the printer)" : "Serial number"}>
+        <input name="serialNumber" defaultValue={a.serialNumber ?? ""} {...device} />
       </Field>
-      <Field label="Manufacturer">
-        <input name="manufacturer" defaultValue={a.manufacturer ?? ""} className="input" />
+      <Field label={readFromDevice ? "Manufacturer (from the printer)" : "Manufacturer"}>
+        <input name="manufacturer" defaultValue={a.manufacturer ?? ""} {...device} />
       </Field>
-      <Field label="Model">
-        <input name="model" defaultValue={a.model ?? ""} className="input" />
+      <Field label={readFromDevice ? "Model (from the printer)" : "Model"}>
+        <input name="model" defaultValue={a.model ?? ""} {...device} />
       </Field>
       <Field label="Status">
         <select name="status" defaultValue={a.status ?? "in_use"} className="input">
@@ -99,9 +105,14 @@ export function AssetFields({
           ))}
         </select>
       </Field>
-      <Field label="Assigned to (person)">
-        <input name="assignedTo" defaultValue={a.assignedTo ?? ""} placeholder="name or email" className="input" />
-      </Field>
+      {showAssignedTo ? (
+        <Field label="Assigned to (person)">
+          <input name="assignedTo" defaultValue={a.assignedTo ?? ""} placeholder="name or email" className="input" />
+        </Field>
+      ) : (
+        // Not used by this list; keep any old value rather than clearing it.
+        <input type="hidden" name="assignedTo" value={a.assignedTo ?? ""} />
+      )}
       <Field label="Purchase date">
         <input name="purchaseDate" type="date" defaultValue={toLocalInput(a.purchaseDate).slice(0, 10)} className="input" />
       </Field>

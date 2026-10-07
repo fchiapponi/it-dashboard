@@ -62,6 +62,7 @@ model Department {
   categories  Category[]
   tickets     Ticket[]
   assets      Asset[]
+  assetLists  AssetList[]
   supplies    Supply[]
   board       Board?
 }
@@ -178,6 +179,9 @@ model Asset {
   // Extra columns that vary by type (IP address, Apple ID, toner, ...) as a
   // JSON object of label -> text; filled by hand or by spreadsheet import.
   extra         String?
+  // Read-only status reported by the device itself (printer ink levels, page
+  // count, ...), as JSON; see lib/printers.ts. Never edited by hand.
+  readings      String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -187,6 +191,21 @@ model Asset {
   activity   AssetActivity[]
 
   @@index([departmentId])
+}
+
+// A department's inventory list for one type (IT · Printer, IT · iPad, ...),
+// holding the columns chosen for it. Lists without a row use default columns.
+model AssetList {
+  id           String @id @default(cuid())
+  departmentId String
+  type         String
+  // JSON array of column keys in display order: an Asset field ("status",
+  // "assignedTo", ...) or "extra:<label>" for a custom field.
+  columns      String
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([departmentId, type])
 }
 
 model AssetActivity {
