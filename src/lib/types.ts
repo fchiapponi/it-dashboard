@@ -19,6 +19,7 @@ export interface PrinterDTO {
   lastError: string | null;
   alert: string | null;
   alertLevel: "error" | "warning" | null;
+  pageCount: number | null;
   supplies: PrinterSupplyDTO[];
 }
 

@@ -198,6 +198,14 @@ export default function TvDashboardPage() {
             )}
             <span className="truncate">{p.name}</span>
           </span>
+          {p.pageCount !== null && (
+            <span
+              title="Pages printed"
+              className="ml-auto shrink-0 text-[0.5625rem] tabular-nums text-[var(--text-dim)]"
+            >
+              {p.pageCount.toLocaleString("it-IT")} pg
+            </span>
+          )}
           <StatusBadge
             status={p.status}
             hideLabel

@@ -22,6 +22,8 @@ export async function pollPrinterById(printerId: string) {
         lastError: result.error ?? null,
         alert: result.alert?.message ?? null,
         alertLevel: result.alert?.level ?? null,
+        // Keep the last known count while the printer is unreachable.
+        ...(result.pageCount !== null && { pageCount: result.pageCount }),
       },
     });
 

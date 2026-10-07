@@ -21,6 +21,7 @@ model Printer {
   lastError      String?
   alert          String?          // device-reported fault (jam, door open, …) while reachable
   alertLevel     String?          // error | warning (paper problems)
+  pageCount      Int?             // lifetime pages printed (prtMarkerLifeCount)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   supplies       PrinterSupply[]

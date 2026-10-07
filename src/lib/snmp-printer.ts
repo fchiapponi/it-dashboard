@@ -5,6 +5,7 @@ const OID_SYS_DESCR = "1.3.6.1.2.1.1.1.0";
 const OID_MARKER_SUPPLIES_TABLE = "1.3.6.1.2.1.43.11.1.1";
 const OID_INPUT_TABLE = "1.3.6.1.2.1.43.8.2.1";
 const OID_ALERT_TABLE = "1.3.6.1.2.1.43.18.1.1";
+const OID_MARKER_TABLE = "1.3.6.1.2.1.43.10.2.1";
 // Host Resources MIB (RFC 2790), device index 1 is the printer on every model we have.
 const OID_DEVICE_STATUS = "1.3.6.1.2.1.25.3.2.1.5.1";
 const OID_DETECTED_ERROR_STATE = "1.3.6.1.2.1.25.3.5.1.2.1";
@@ -82,6 +83,8 @@ export interface PrinterPollResult {
   error?: string;
   // Fault reported by the printer itself (jam, door open, …), null when fine.
   alert: PrinterFault | null;
+  // Lifetime page count, null when the printer doesn't report it.
+  pageCount: number | null;
   supplies: SupplyReading[];
 }
 
@@ -190,13 +193,15 @@ export async function pollPrinter(
     }
 
     const alert = await readFault(session).catch(() => null);
+    const pageCount = await readPageCount(session).catch(() => null);
 
-    return { online: true, alert, supplies };
+    return { online: true, alert, pageCount, supplies };
   } catch (err) {
     return {
       online: false,
       error: err instanceof Error ? err.message : "Unknown SNMP error",
       alert: null,
+      pageCount: null,
       supplies: [],
     };
   } finally {
@@ -239,6 +244,18 @@ async function readFault(session: ReturnType<typeof snmp.createSession>): Promis
   }
 
   if (toNumber(varbinds[1]?.value) === DEVICE_STATUS_DOWN) return { message: "Printer down", level: "error" };
+  return null;
+}
+
+// Lifetime pages from prtMarkerLifeCount(4). Takes the first marker's counter —
+// every model we have has a single marker.
+async function readPageCount(session: ReturnType<typeof snmp.createSession>): Promise<number | null> {
+  const table = await tableWalk(session, OID_MARKER_TABLE);
+  for (const row of Object.values(table)) {
+    if (row["4"] === undefined) continue;
+    const count = toNumber(row["4"]);
+    if (Number.isFinite(count) && count > 0) return count;
+  }
   return null;
 }
 
