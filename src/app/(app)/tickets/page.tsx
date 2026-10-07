@@ -28,7 +28,7 @@ export default async function TicketsPage({ searchParams }: PageProps<"/tickets"
   const view = agent ? (VIEWS.find((v) => v === sp.view) ?? "queue") : "mine";
 
   const where: Prisma.TicketWhereInput[] = [visibleTickets(user)];
-  if (view === "assigned") where.push({ assigneeId: user.id });
+  if (view === "assigned") where.push({ assignees: { some: { userId: user.id } } });
   if (view === "mine") where.push({ requesterId: user.id });
   if (q) {
     const n = Number.parseInt(q.replace(/^#/, ""), 10);
@@ -43,7 +43,7 @@ export default async function TicketsPage({ searchParams }: PageProps<"/tickets"
       where: { AND: [...where, stateWhere, { departmentId: dept.id }] },
       include: {
         requester: true,
-        assignee: true,
+        assignees: { include: { user: true }, orderBy: { createdAt: "asc" } },
         location: true,
         // Last public reply; internal notes aren't replies to the requester.
         activity: { where: { kind: "comment" }, orderBy: { createdAt: "desc" }, take: 1, include: { author: true } },
@@ -182,7 +182,7 @@ export default async function TicketsPage({ searchParams }: PageProps<"/tickets"
                       <Badge value={t.priority} />
                     </td>
                     <td className="whitespace-nowrap">{t.requester.name}</td>
-                    <td className="whitespace-nowrap text-dim">{t.assignee?.name ?? "—"}</td>
+                    <td className="text-dim">{t.assignees.map((a) => a.user.name).join(", ") || "—"}</td>
                     <td
                       className={cn(
                         "whitespace-nowrap",

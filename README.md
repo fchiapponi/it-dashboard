@@ -10,7 +10,7 @@ One web app for TASIS staff to:
 - **Deliveries**: reception logs incoming parcels and marks them as collected. Recipients see what's waiting for them on their dashboard.
 - **Events**: staff create events and say what IT, Facilities and Kitchen & Dining need to do. Each need becomes a ticket for that department, linked back to the event. The app warns when two events are booked in the same place at the same time.
 
-Same stack and hosting model as the Control Room dashboard: Next.js 16, Prisma 6 + SQLite and Tailwind 4, running on the school Mac.
+Same stack and hosting model as the Control Room dashboard: Next.js 16, Prisma 6 + SQLite and Tailwind 4, running on the school's internal Windows server.
 
 ## Who can do what
 
@@ -33,7 +33,19 @@ npm run build
 npm run start                 # http://localhost:3060
 ```
 
-Or double-click **`Start Helpdesk.command`** on the Mac, which does all of the above.
+On the Windows server, double-click **`Start Helpdesk.bat`**: it does all of the above and opens the app. On a Mac, use **`Start Helpdesk.command`** instead.
+
+### On the Windows server
+
+- **Install it with `git clone https://github.com/fchiapponi/Tasis-one.git`**, not by copying the folder. The launcher updates the app from GitHub, so it needs Git ([git-scm.com](https://git-scm.com/download/win)). The first `git pull` asks you to sign in to GitHub once; Windows then remembers the login.
+- The app is started by hand. It runs in a minimized window called **TASIS One server**. If you close that window or log off, the app stops.
+- **To update, double-click `Start Helpdesk.bat`.** It stops the running app, runs `git pull`, installs new dependencies if `package.json` changed, applies new database migrations, rebuilds and starts the app again. If GitHub can't be reached, it says so and restarts the version already on the server.
+- Never edit files on the server: `git pull` would refuse to update. Make changes on your own computer and push them to GitHub. `.env`, `prisma/dev.db` and `helpdesk.log` aren't in Git, so updates never touch them.
+- Run `npm install` on the server itself. A `node_modules` folder copied from a Mac doesn't work on Windows: delete it and the launcher reinstalls it.
+- Keep the folder, and so `prisma/dev.db`, on a local disk of the server, never on a network share. SQLite can corrupt its file on network shares. If possible, exclude the folder from the antivirus' real-time scanning.
+- In `.env`, write Windows paths with forward slashes, e.g. `GOOGLE_SERVICE_ACCOUNT_FILE="C:/helpdesk-secrets/service-account.json"`.
+- The server needs outbound HTTPS to `*.googleapis.com`, and to `api.anthropic.com` if tickets by email are on. If the school goes out through a proxy, add `HTTPS_PROXY="http://proxy:port"` and `NODE_USE_ENV_PROXY=1` to `.env`.
+- Run only one copy of the app at a time. The mailbox check runs inside the app, so two copies would handle each email twice.
 
 To work on the app, run `npm run dev`. In development the login page also shows a **development sign-in** form, so you can sign in as any email without Google. That form is never available in production builds.
 
@@ -53,9 +65,44 @@ To work on the app, run `npm run dev`. In development the login page also shows 
 2. Go to **Credentials → Create credentials → OAuth client ID → Web application**.
 3. Under **Authorized redirect URIs**, add `<APP_URL>/api/auth/callback`.
 
-**Important:** Google accepts only `http://localhost` or **HTTPS on a real domain name** as a redirect URI. A LAN address like `http://172.25.x.x:3060` is rejected. To make the app usable from other machines, put it behind a hostname such as `helpdesk.tasis.ch`, served over HTTPS. Two ways to do that:
-- a reverse proxy such as Caddy on the Mac, with internal DNS pointing the hostname at the Mac;
-- a Cloudflare Tunnel.
+**Important:** Google accepts only `http://localhost` or **HTTPS on a real domain name** as a redirect URI. A LAN address like `http://172.25.x.x:3060` is rejected. To make the app usable from other machines, put it behind a hostname such as `helpdesk.tasis.ch`, served over HTTPS.
+
+The app is meant for the **school's internal network only**. Don't publish it to the Internet: no port forwarding, no Cloudflare Tunnel. It still works only on the inside, because:
+- **Internal DNS:** `helpdesk.tasis.ch` exists only on the school DNS and points at the Windows server. Google never connects to that address: it only checks that the redirect URI matches, and the browser does the redirect. So the name doesn't have to be reachable from outside.
+- **HTTPS:** IIS (with URL Rewrite and ARR) or Caddy on the server forwards `https://helpdesk.tasis.ch` to `http://localhost:3060`. On the Windows firewall, open only port 443 to the school network, and keep 3060 closed.
+- **Certificate:** since the site isn't reachable from outside, a normal Let's Encrypt check over HTTP can't work. Use the school's internal certificate authority, if school computers already trust it, or an existing `tasis.ch` certificate, or Let's Encrypt with the DNS check.
+- **Outbound access:** the server still has to reach Google, for sign-in and the ticket@ mailbox, and the Claude API. That traffic is outgoing only, and nothing from outside can come in.
+
+Set `APP_URL="https://helpdesk.tasis.ch"` in `.env`. Links in confirmation emails and on QR labels use it, so they open only from the school network.
+
+## Tickets by email
+
+Staff can also open a ticket by writing to **ticket@tasis.ch**:
+
+1. The app checks the mailbox every minute.
+2. Claude reads each new email and files it. It writes a short title and picks the department, category, location and priority. The email text is kept unchanged as the ticket description.
+3. The sender gets a reply in the same email thread. It shows the ticket number, where the ticket was filed and a link to it.
+4. When someone answers in that thread, the answer is added to the ticket as a comment. Quoted history is removed. Only the requester and the department's agents can add comments this way. If the requester answers a *Resolved* or *Waiting* ticket, it moves back to *Open*.
+
+Only addresses from `GOOGLE_WORKSPACE_DOMAIN` can open tickets. Emails from anyone else, out-of-office replies, bounces and mailing lists are ignored and get no reply. If Claude can't be reached, the email still becomes a ticket: it goes to `EMAIL_TICKETS_DEFAULT_DEPARTMENT`, and the ticket history tells agents to check how it was filed. Attachments aren't imported yet; the ticket notes how many there were.
+
+Gmail tags every email it has handled with the label `helpdesk-processed`. You can still read the mailbox normally.
+
+### Setup
+
+1. Create the `ticket@tasis.ch` mailbox, as a user or a group with its own inbox.
+2. In Google Cloud Console, in the same project as the sign-in client, enable the **Gmail API**. Then create a **service account** and a JSON key for it. Save the key on the server **outside** this folder, and put its path in `GOOGLE_SERVICE_ACCOUNT_FILE`.
+3. In the Google Admin console, go to **Security → Access and data control → API controls → Domain-wide delegation**. Add the service account's client ID with the scope `https://www.googleapis.com/auth/gmail.modify`.
+4. Set `TICKET_MAILBOX=ticket@tasis.ch` and `ANTHROPIC_API_KEY` in `.env`, then restart the app. The log should show `[email-tickets] watching ticket@tasis.ch`.
+
+| Variable | Meaning |
+|---|---|
+| `TICKET_MAILBOX` | The mailbox to watch. Leave it empty to turn the feature off. |
+| `TICKET_MAILBOX_NAME` | Sender name on the confirmation emails. |
+| `GOOGLE_SERVICE_ACCOUNT_FILE` | Path to the service account JSON key. |
+| `EMAIL_POLL_SECONDS` | How often to check the mailbox (default 60). |
+| `EMAIL_TICKETS_DEFAULT_DEPARTMENT` | Department slug for emails the AI couldn't sort (default `it`). |
+| `ANTHROPIC_API_KEY` | Claude API key used to sort emails. |
 
 ## Day-to-day
 
@@ -65,6 +112,6 @@ To work on the app, run `npm run dev`. In development the login page also shows 
 
 ## Not built yet
 
-- Email notifications for new tickets, replies, and parcels that have arrived. Planned: through Gmail or SMTP.
+- Email notifications when an agent replies in the app, and for parcels that have arrived. The Gmail client used for tickets by email can send these.
 - File attachments (photos) on tickets.
 - A reception kiosk mode where visitors sign themselves in on a tablet.

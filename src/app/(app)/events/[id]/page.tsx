@@ -15,7 +15,7 @@ export default async function EventPage({ params }: PageProps<"/events/[id]">) {
     include: {
       location: true,
       organizer: true,
-      tickets: { include: { department: true, assignee: true }, orderBy: { createdAt: "asc" } },
+      tickets: { include: { department: true, assignees: { include: { user: true } } }, orderBy: { createdAt: "asc" } },
     },
   });
   if (!event) notFound();
@@ -110,7 +110,7 @@ export default async function EventPage({ params }: PageProps<"/events/[id]">) {
                       </Link>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-dim">
-                      {t.assignee ? t.assignee.name : "Unassigned"} <Badge value={t.status} />
+                      {t.assignees.map((a) => a.user.name).join(", ") || "Unassigned"} <Badge value={t.status} />
                     </div>
                   </li>
                 ))}

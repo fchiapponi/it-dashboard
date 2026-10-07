@@ -23,8 +23,8 @@ export default async function Dashboard() {
     prisma.delivery.count({ where: { recipientId: user.id, status: "received" } }),
     agent
       ? Promise.all([
-          prisma.ticket.count({ where: { ...queueWhere, status: "open", assigneeId: null } }),
-          prisma.ticket.count({ where: { assigneeId: user.id, status: { in: ACTIVE_STATUSES } } }),
+          prisma.ticket.count({ where: { ...queueWhere, status: "open", assignees: { none: {} } } }),
+          prisma.ticket.count({ where: { assignees: { some: { userId: user.id } }, status: { in: ACTIVE_STATUSES } } }),
           prisma.ticket.count({ where: { ...queueWhere, status: { in: ACTIVE_STATUSES }, priority: "urgent" } }),
           lowStockCount(user.isAdmin ? undefined : user.departmentIds),
           // One list per department: tickets of different departments are never mixed.

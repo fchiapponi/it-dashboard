@@ -21,7 +21,7 @@ export default async function TicketPage({ params }: PageProps<"/tickets/[number
       category: true,
       location: true,
       requester: true,
-      assignee: true,
+      assignees: { include: { user: true }, orderBy: { createdAt: "asc" } },
       asset: true,
       event: true,
       activity: { include: { author: true }, orderBy: { createdAt: "asc" } },
@@ -30,10 +30,11 @@ export default async function TicketPage({ params }: PageProps<"/tickets/[number
   if (!ticket || !canViewTicket(user, ticket)) notFound();
 
   const agent = isAgentOf(user, ticket.departmentId);
+  const assigneeIds = ticket.assignees.map((a) => a.userId);
   const [agents, departments, supplies] = agent
     ? await Promise.all([
         prisma.user.findMany({
-          where: { OR: [{ memberships: { some: { departmentId: ticket.departmentId } } }, { id: ticket.assigneeId ?? "" }] },
+          where: { OR: [{ memberships: { some: { departmentId: ticket.departmentId } } }, { id: { in: assigneeIds } }] },
           orderBy: { name: "asc" },
         }),
         prisma.department.findMany({ where: { takesTickets: true }, orderBy: { name: "asc" } }),
@@ -64,9 +65,9 @@ export default async function TicketPage({ params }: PageProps<"/tickets/[number
         }
         actions={
           <>
-            {agent && ticket.assigneeId !== user.id && open && (
+            {agent && !assigneeIds.includes(user.id) && open && (
               <form action={takeTicket.bind(null, ticket.id)}>
-                <button className="btn btn-primary">Take it</button>
+                <button className="btn btn-primary">{assigneeIds.length ? "Join" : "Take it"}</button>
               </form>
             )}
             {ticket.requesterId === user.id && ticket.status !== "closed" && (
@@ -141,16 +142,24 @@ export default async function TicketPage({ params }: PageProps<"/tickets/[number
                     ))}
                   </select>
                 </Field>
-                <Field label="Assignee">
-                  <select name="assigneeId" defaultValue={ticket.assigneeId ?? ""} className="input">
-                    <option value="">Unassigned</option>
+                <div>
+                  <span className="label">Assigned to</span>
+                  <div className="max-h-44 space-y-1 overflow-y-auto rounded-lg border border-line p-2" key={assigneeIds.join()}>
                     {agents.map((a) => (
-                      <option key={a.id} value={a.id}>
+                      <label key={a.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-sm hover:bg-panel-muted">
+                        <input
+                          type="checkbox"
+                          name="assigneeIds"
+                          value={a.id}
+                          defaultChecked={assigneeIds.includes(a.id)}
+                          className="size-4 accent-accent"
+                        />
                         {a.name}
-                      </option>
+                        {a.id === user.id && <span className="text-xs text-dim">(me)</span>}
+                      </label>
                     ))}
-                  </select>
-                </Field>
+                  </div>
+                </div>
                 <Field label="Due date">
                   <input name="dueAt" type="date" defaultValue={toLocalInput(ticket.dueAt).slice(0, 10)} className="input" />
                 </Field>
@@ -184,7 +193,9 @@ export default async function TicketPage({ params }: PageProps<"/tickets/[number
                 {ticket.requester.name}
                 <div className="text-xs text-dim">{ticket.requester.email}</div>
               </Detail>
-              <Detail term="Assignee">{ticket.assignee?.name ?? "Unassigned"}</Detail>
+              <Detail term={ticket.assignees.length > 1 ? "Assignees" : "Assignee"}>
+                {ticket.assignees.length ? ticket.assignees.map((a) => <div key={a.userId}>{a.user.name}</div>) : "Unassigned"}
+              </Detail>
               <Detail term="Category">{ticket.category?.name ?? "—"}</Detail>
               <Detail term="Location">{ticket.location?.name ?? "—"}</Detail>
               {ticket.asset && (

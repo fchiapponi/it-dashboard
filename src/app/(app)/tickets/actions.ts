@@ -42,18 +42,21 @@ export async function createTicket(form: FormData) {
 
 async function loadForAgent(ticketId: string) {
   const user = await requireUser();
-  const ticket = await prisma.ticket.findUniqueOrThrow({ where: { id: ticketId } });
+  const ticket = await prisma.ticket.findUniqueOrThrow({ where: { id: ticketId }, include: { assignees: true } });
   assert(isAgentOf(user, ticket.departmentId));
   return { user, ticket };
 }
 
-/** Agent-side changes: status, priority, assignee, due date, category, department. Logs each change. */
+/** Agent-side changes: status, priority, assignees, due date, category, department. Logs each change. */
 export async function updateTicket(ticketId: string, form: FormData) {
   const { user, ticket } = await loadForAgent(ticketId);
 
   const status = oneOf(str(form, "status"), TICKET_STATUSES, ticket.status as (typeof TICKET_STATUSES)[number]);
   const priority = oneOf(str(form, "priority"), TICKET_PRIORITIES, ticket.priority as (typeof TICKET_PRIORITIES)[number]);
-  const assigneeId = str(form, "assigneeId");
+  const assigneeIds = [...new Set(form.getAll("assigneeIds").filter((v): v is string => typeof v === "string" && v !== ""))];
+  const currentIds = ticket.assignees.map((a) => a.userId);
+  const added = assigneeIds.filter((id) => !currentIds.includes(id));
+  const removed = currentIds.filter((id) => !assigneeIds.includes(id));
   const dueAt = fromLocalInput(str(form, "dueAt"));
   const departmentId = str(form, "departmentId") ?? ticket.departmentId;
   // Moving to another department drops the category, which belongs to the old one.
@@ -62,9 +65,13 @@ export async function updateTicket(ticketId: string, form: FormData) {
   const events: string[] = [];
   if (status !== ticket.status) events.push(`changed status to ${label(status)}`);
   if (priority !== ticket.priority) events.push(`changed priority to ${label(priority)}`);
-  if (assigneeId !== ticket.assigneeId) {
-    const a = assigneeId ? await prisma.user.findUnique({ where: { id: assigneeId } }) : null;
-    events.push(a ? `assigned to ${a.name}` : "unassigned");
+  if (added.length || removed.length) {
+    const names = new Map(
+      (await prisma.user.findMany({ where: { id: { in: [...added, ...removed] } } })).map((u) => [u.id, u.name]),
+    );
+    const list = (ids: string[]) => ids.map((id) => names.get(id) ?? "someone").join(", ");
+    if (added.length) events.push(`assigned to ${list(added)}`);
+    if (removed.length) events.push(`unassigned ${list(removed)}`);
   }
   if (dueAt?.getTime() !== ticket.dueAt?.getTime()) events.push(dueAt ? `set the due date to ${fmtDate(dueAt)}` : "removed the due date");
   if (departmentId !== ticket.departmentId) {
@@ -79,7 +86,10 @@ export async function updateTicket(ticketId: string, form: FormData) {
     data: {
       status,
       priority,
-      assigneeId,
+      assignees: {
+        deleteMany: { userId: { in: removed } },
+        create: added.map((userId) => ({ userId })),
+      },
       dueAt,
       departmentId,
       categoryId,
@@ -98,7 +108,11 @@ export async function takeTicket(ticketId: string) {
   const { user, ticket } = await loadForAgent(ticketId);
   await prisma.ticket.update({
     where: { id: ticket.id },
-    data: { assigneeId: user.id, status: ticket.status === "open" ? "in_progress" : ticket.status },
+    data: {
+      // Joins whoever is already assigned instead of replacing them.
+      assignees: ticket.assignees.some((a) => a.userId === user.id) ? undefined : { create: { userId: user.id } },
+      status: ticket.status === "open" ? "in_progress" : ticket.status,
+    },
   });
   await prisma.ticketActivity.create({
     data: { ticketId: ticket.id, authorId: user.id, kind: "event", body: "took this ticket" },
