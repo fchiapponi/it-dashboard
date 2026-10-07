@@ -63,6 +63,7 @@ model Department {
   tickets     Ticket[]
   assets      Asset[]
   supplies    Supply[]
+  board       Board?
 }
 
 // A user who is a member of a department is an agent for it: they work its
@@ -302,19 +303,23 @@ model Event {
 
 // ---------------------------------------------------------------- boards
 
-// Trello-style personal board for to-dos and projects. Each user has exactly
-// one, created on their first visit, and only they can see and edit it.
+// Trello-style boards for to-dos and projects, created on first visit. Each
+// user has a personal board only they can see, and each department has a
+// shared board for its members (and admins).
 model Board {
-  id          String      @id @default(cuid())
-  title       String      @default("My board")
-  description String?
-  color       String      @default("#2563eb")
-  ownerId     String      @unique
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id           String      @id @default(cuid())
+  title        String      @default("My board")
+  description  String?
+  color        String      @default("#2563eb")
+  // Exactly one of these is set: a personal board, or a department's shared board.
+  ownerId      String?     @unique
+  departmentId String?     @unique
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
-  owner User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  lists BoardList[]
+  owner      User?       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  lists      BoardList[]
 }
 
 model BoardList {

@@ -12,6 +12,7 @@ export type CardItem = {
   color: string | null;
   done: boolean;
   due: { label: string; state: "overdue" | "today" | "later" } | null;
+  assignee: { name: string; initials: string } | null;
   comments: number;
   hasDescription: boolean;
 };
@@ -37,7 +38,8 @@ function inFirstHalf(e: DragEvent<HTMLElement>, axis: "x" | "y") {
   return axis === "y" ? e.clientY < r.top + r.height / 2 : e.clientX < r.left + r.width / 2;
 }
 
-export function BoardView({ lists: serverLists }: { lists: ListItem[] }) {
+/** `basePath` is the board's URL; cards open as `${basePath}?card=<id>`. */
+export function BoardView({ boardId, basePath, lists: serverLists }: { boardId: string; basePath: string; lists: ListItem[] }) {
   const router = useRouter();
   const [lists, optimisticMove] = useOptimistic(serverLists, applyMove);
   const drag = useRef<Drag | null>(null);
@@ -111,12 +113,12 @@ export function BoardView({ lists: serverLists }: { lists: ListItem[] }) {
       ids.splice(index, 0, d.id);
       startTransition(async () => {
         optimisticMove({ kind: "lists", ids });
-        await reorderLists(ids);
+        await reorderLists(boardId, ids);
       });
     }
   };
 
-  const openCard = (id: string) => router.push(`/boards?card=${id}`, { scroll: false });
+  const openCard = (id: string) => router.push(`${basePath}?card=${id}`, { scroll: false });
 
   return (
     <div className="-mx-4 overflow-x-auto px-4 pb-4 md:-mx-8 md:px-8" onDrop={drop} onDragOver={(e) => drag.current && e.preventDefault()}>
@@ -157,7 +159,7 @@ export function BoardView({ lists: serverLists }: { lists: ListItem[] }) {
             {listTarget === li + 1 && li === lists.length - 1 && <DropLine vertical />}
           </div>
         ))}
-        <AddList />
+        <AddList boardId={boardId} />
       </div>
     </div>
   );
@@ -197,7 +199,7 @@ function CardFace({
       {card.color && <div className="h-1.5" style={{ background: card.color }} />}
       <div className="px-3 py-2">
         <div className={cn("break-words", card.done && "text-dim line-through")}>{card.title}</div>
-        {(card.due || card.comments > 0 || card.hasDescription || card.done) && (
+        {(card.due || card.assignee || card.comments > 0 || card.hasDescription || card.done) && (
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-dim">
             {card.due && (
               <span
@@ -224,6 +226,14 @@ function CardFace({
               <span className="inline-flex items-center gap-1">
                 <MessageSquare className="size-3.5" />
                 {card.comments}
+              </span>
+            )}
+            {card.assignee && (
+              <span
+                className="ml-auto grid size-6 place-items-center rounded-full bg-accent text-[10px] font-semibold text-accent-fg"
+                title={card.assignee.name}
+              >
+                {card.assignee.initials}
               </span>
             )}
           </div>
@@ -315,7 +325,7 @@ function AddCard({ listId }: { listId: string }) {
   );
 }
 
-function AddList() {
+function AddList({ boardId }: { boardId: string }) {
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
@@ -328,7 +338,7 @@ function AddList() {
     );
   }
   return (
-    <form action={createList} className="w-72 shrink-0 space-y-2 rounded-xl border border-line bg-panel-muted p-2">
+    <form action={createList.bind(null, boardId)} className="w-72 shrink-0 space-y-2 rounded-xl border border-line bg-panel-muted p-2">
       <input
         name="title"
         required

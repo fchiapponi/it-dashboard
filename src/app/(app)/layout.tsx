@@ -17,7 +17,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const items: NavItem[] = [
     { href: "/", label: "Dashboard", icon: "dashboard" },
     { href: "/tickets", label: "Tickets", icon: "tickets" },
-    { href: "/boards", label: "My board", icon: "boards" },
+    { href: "/boards", label: "Boards", icon: "boards" },
     ...(isAgent(user) ? [{ href: "/inventory", label: "Inventory", icon: "inventory" } as NavItem] : []),
     { href: "/visitors", label: "Visitors", icon: "visitors" },
     { href: "/deliveries", label: "Deliveries", icon: "deliveries", badge: isReception(user) ? undefined : myDeliveries },

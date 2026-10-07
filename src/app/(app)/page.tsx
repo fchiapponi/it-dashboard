@@ -1,42 +1,37 @@
 import Link from "next/link";
-import { Package, Plus, UserCheck } from "lucide-react";
-import { Badge, DeptBadge, Empty, PageHeader, Section, Stat } from "@/components/ui";
+import { Plus } from "lucide-react";
+import { DeptBadge, PageHeader, Stat } from "@/components/ui";
 import { isAgent, isReception, requireUser } from "@/lib/auth";
-import { fmtRelative, startOfToday } from "@/lib/format";
+import { startOfToday } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { ACTIVE_STATUSES, lowStockCount } from "@/lib/tickets";
 
+/** Numbers only: each tile links to the list behind it. */
 export default async function Dashboard() {
   const user = await requireUser();
   const agent = isAgent(user);
   const reception = isReception(user);
   const today = startOfToday();
-  const queueWhere = user.isAdmin && !user.departmentIds.length ? {} : { departmentId: { in: user.departmentIds } };
+  const active = { status: { in: ACTIVE_STATUSES } };
 
-  const [myOpen, myDeliveries, queue] = await Promise.all([
-    prisma.ticket.findMany({
-      where: { requesterId: user.id, status: { in: ACTIVE_STATUSES } },
-      include: { department: true },
-      orderBy: { updatedAt: "desc" },
-      take: 8,
-    }),
+  // Departments whose queue the user works, each shown separately: tickets of different departments are never mixed.
+  const departments = agent
+    ? await prisma.department.findMany({
+        where: { takesTickets: true, ...(user.isAdmin && !user.departmentIds.length ? {} : { id: { in: user.departmentIds } }) },
+        orderBy: { name: "asc" },
+      })
+    : [];
+  const inDepts = { departmentId: { in: departments.map((d) => d.id) } };
+
+  const [assignedToMe, myOpen, myDeliveries, lowStock, byStatus, unassigned, urgent, overdue] = await Promise.all([
+    prisma.ticket.count({ where: { ...active, assignees: { some: { userId: user.id } } } }),
+    prisma.ticket.count({ where: { ...active, requesterId: user.id } }),
     prisma.delivery.count({ where: { recipientId: user.id, status: "received" } }),
-    agent
-      ? Promise.all([
-          prisma.ticket.count({ where: { ...queueWhere, status: "open", assignees: { none: {} } } }),
-          prisma.ticket.count({ where: { assignees: { some: { userId: user.id } }, status: { in: ACTIVE_STATUSES } } }),
-          prisma.ticket.count({ where: { ...queueWhere, status: { in: ACTIVE_STATUSES }, priority: "urgent" } }),
-          lowStockCount(user.isAdmin ? undefined : user.departmentIds),
-          // One list per department: tickets of different departments are never mixed.
-          prisma.department.findMany({
-            where: { takesTickets: true, ...(user.isAdmin && !user.departmentIds.length ? {} : { id: { in: user.departmentIds } }) },
-            orderBy: { name: "asc" },
-            include: {
-              tickets: { where: { status: { in: ACTIVE_STATUSES } }, orderBy: [{ updatedAt: "desc" }], take: 6 },
-            },
-          }),
-        ])
-      : null,
+    agent ? lowStockCount(user.isAdmin ? undefined : user.departmentIds) : 0,
+    prisma.ticket.groupBy({ by: ["departmentId", "status"], where: { ...inDepts, ...active }, _count: true }),
+    prisma.ticket.groupBy({ by: ["departmentId"], where: { ...inDepts, ...active, assignees: { none: {} } }, _count: true }),
+    prisma.ticket.groupBy({ by: ["departmentId"], where: { ...inDepts, ...active, priority: "urgent" }, _count: true }),
+    prisma.ticket.groupBy({ by: ["departmentId"], where: { ...inDepts, ...active, dueAt: { lt: today } }, _count: true }),
   ]);
 
   const desk = reception
@@ -46,6 +41,11 @@ export default async function Dashboard() {
         prisma.delivery.count({ where: { status: "received" } }),
       ])
     : null;
+
+  const countFor = (rows: { departmentId: string; _count: number }[], deptId: string) =>
+    rows.find((r) => r.departmentId === deptId)?._count ?? 0;
+  const statusCount = (deptId: string, status: string) =>
+    byStatus.find((r) => r.departmentId === deptId && r.status === status)?._count ?? 0;
 
   const firstName = user.name.split(" ")[0];
 
@@ -61,93 +61,52 @@ export default async function Dashboard() {
         }
       />
 
-      {myDeliveries > 0 && (
-        <Link href="/deliveries" className="mb-6 flex items-center gap-3 rounded-xl bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300">
-          <Package className="size-5" />
-          You have {myDeliveries} deliver{myDeliveries === 1 ? "y" : "ies"} waiting at reception.
-        </Link>
-      )}
+      <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+        {agent && <Stat label="Assigned to me" value={assignedToMe} href="/tickets?view=assigned" />}
+        <Stat label="My open requests" value={myOpen} href="/tickets?view=mine" />
+        <Stat label="Deliveries for me" value={myDeliveries} tone={myDeliveries ? "amber" : undefined} href="/deliveries" />
+        {agent && <Stat label="Supplies low" value={lowStock} tone={lowStock ? "amber" : undefined} href="/inventory/supplies" />}
+      </div>
 
-      {queue && (
-        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Stat label="Unassigned in queue" value={queue[0]} href="/tickets?view=queue" />
-          <Stat label="Assigned to me" value={queue[1]} href="/tickets?view=assigned" />
-          <Stat label="Urgent open" value={queue[2]} tone={queue[2] ? "red" : undefined} href="/tickets?view=queue" />
-          <Stat label="Supplies low" value={queue[3]} tone={queue[3] ? "amber" : undefined} href="/inventory/supplies" />
-        </div>
-      )}
+      {departments.map((d) => {
+        const q = (state: string) => `/tickets?dept=${d.slug}&state=${state}`;
+        const n = {
+          open: statusCount(d.id, "open"),
+          inProgress: statusCount(d.id, "in_progress"),
+          waiting: statusCount(d.id, "waiting"),
+          standby: statusCount(d.id, "standby"),
+          unassigned: countFor(unassigned, d.id),
+          urgent: countFor(urgent, d.id),
+          overdue: countFor(overdue, d.id),
+        };
+        return (
+          <section key={d.id} className="mb-8">
+            <h2 className="mb-3 text-sm font-semibold">
+              <DeptBadge dept={d} />
+            </h2>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+              <Stat label="Open" value={n.open} href={q("open")} />
+              <Stat label="Unassigned" value={n.unassigned} tone={n.unassigned ? "amber" : undefined} href={q("active")} />
+              <Stat label="In progress" value={n.inProgress} href={q("in_progress")} />
+              <Stat label="Waiting" value={n.waiting} href={q("waiting")} />
+              <Stat label="Standby" value={n.standby} href={q("standby")} />
+              <Stat label="Urgent" value={n.urgent} tone={n.urgent ? "red" : undefined} href={q("active")} />
+              <Stat label="Overdue" value={n.overdue} tone={n.overdue ? "red" : undefined} href={q("active")} />
+            </div>
+          </section>
+        );
+      })}
 
       {desk && (
-        <div className="mb-6 grid grid-cols-3 gap-3">
-          <Stat label="Visitors on site" value={desk[0]} href="/visitors" />
-          <Stat label="Still expected today" value={desk[1]} href="/visitors" />
-          <Stat label="Parcels on the shelf" value={desk[2]} href="/deliveries" />
-        </div>
+        <section className="mb-8">
+          <h2 className="mb-3 text-sm font-semibold">Reception</h2>
+          <div className="grid grid-cols-3 gap-3">
+            <Stat label="Visitors on site" value={desk[0]} href="/visitors" />
+            <Stat label="Still expected today" value={desk[1]} href="/visitors" />
+            <Stat label="Parcels on the shelf" value={desk[2]} href="/deliveries" />
+          </div>
+        </section>
       )}
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {queue?.[4].map((d) => (
-          <Section
-            key={d.id}
-            title={<DeptBadge dept={d} />}
-            actions={
-              <Link href={`/tickets?dept=${d.slug}`} className="link text-xs">
-                All
-              </Link>
-            }
-            className="lg:col-span-2"
-          >
-            {d.tickets.length === 0 ? (
-              <Empty>{d.name} queue is empty. 🎉</Empty>
-            ) : (
-              <ul className="divide-y divide-line">
-                {d.tickets.map((t) => (
-                  <li key={t.id}>
-                    <Link href={`/tickets/${t.number}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm hover:bg-panel-muted">
-                      <span className="text-dim tabular-nums">#{t.number}</span>
-                      <span className="min-w-0 flex-1 truncate font-medium">{t.title}</span>
-                      <Badge value={t.priority} />
-                      <Badge value={t.status} />
-                      <span className="w-20 text-right text-xs text-dim">{fmtRelative(t.updatedAt)}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
-        ))}
-
-        <Section title="My open requests" actions={<Link href="/tickets?view=mine" className="link text-xs">All</Link>}>
-          {myOpen.length === 0 ? (
-            <Empty>You have no open tickets.</Empty>
-          ) : (
-            <ul className="divide-y divide-line">
-              {myOpen.map((t) => (
-                <li key={t.id}>
-                  <Link href={`/tickets/${t.number}`} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-panel-muted">
-                    <span className="min-w-0 flex-1 truncate">{t.title}</span>
-                    <DeptBadge dept={t.department} />
-                    <Badge value={t.status} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Section>
-
-        {!reception && (
-          <Section title="Expecting a visitor?" className="lg:col-span-2">
-            <div className="flex items-center justify-between gap-3 p-4 text-sm text-dim">
-              <span className="flex items-center gap-2">
-                <UserCheck className="size-4" /> Pre-register them so reception has their badge ready.
-              </span>
-              <Link href="/visitors" className="btn">
-                Register visitor
-              </Link>
-            </div>
-          </Section>
-        )}
-      </div>
     </>
   );
 }

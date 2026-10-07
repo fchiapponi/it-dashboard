@@ -6,3 +6,12 @@ export const CARD_COLORS = ["#22c55e", "#eab308", "#f97316", "#ef4444", "#a855f7
 
 /** Lists a new board starts with. */
 export const DEFAULT_LISTS = ["To do", "Doing", "Done"];
+
+export function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("");
+}

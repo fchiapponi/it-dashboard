@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { devSignIn } from "./actions";
 import { safeReturnTo } from "@/lib/format";
 
@@ -17,8 +18,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <main className="grid min-h-screen place-items-center px-4">
       <div className="card w-full max-w-sm p-8">
-        <div className="mb-6 flex items-center gap-2 text-lg font-semibold">
-          <span className="grid size-8 place-items-center rounded-lg bg-accent text-sm font-bold text-accent-fg">T</span>
+        <div className="mb-6 flex items-center gap-3 text-lg font-semibold">
+          <Image src="/tasis-logo.png" alt="TASIS" width={150} height={222} priority className="h-14 w-auto dark:rounded-md dark:bg-white dark:p-1" />
           TASIS One
         </div>
         <p className="mb-6 text-sm text-dim">

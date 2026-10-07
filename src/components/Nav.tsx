@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Boxes, CalendarDays, LayoutDashboard, LogOut, Package, Settings, SquareKanban, Ticket, UserCheck } from "lucide-react";
@@ -26,7 +27,7 @@ export function Nav({ items, user, signOut }: { items: NavItem[]; user: { name: 
     <aside className="no-print border-b border-line bg-panel md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col md:border-r md:border-b-0">
       <div className="flex items-center justify-between px-4 py-3 md:py-5">
         <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="grid size-7 place-items-center rounded-lg bg-accent text-xs font-bold text-accent-fg">T</span>
+          <Image src="/tasis-logo.png" alt="TASIS" width={150} height={222} priority className="h-9 w-auto dark:rounded dark:bg-white dark:p-0.5" />
           TASIS One
         </Link>
         <form action={signOut} className="md:hidden">
