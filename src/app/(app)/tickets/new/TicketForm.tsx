@@ -83,9 +83,14 @@ export function TicketForm({
         <textarea name="description" required rows={6} placeholder="What happened, room number, since when, what you already tried…" className="input" />
       </Field>
 
-      <Field label="Asset tag (optional — printed on the QR label)">
-        <input name="assetTag" defaultValue={defaults.assetTag} placeholder="TAS-00042" className="input max-w-48 uppercase" />
-      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Asset tag (optional — printed on the QR label)">
+          <input name="assetTag" defaultValue={defaults.assetTag} placeholder="TAS-00042" className="input max-w-48 uppercase" />
+        </Field>
+        <Field label="Needed by (optional)">
+          <input name="dueAt" type="date" className="input max-w-48" />
+        </Field>
+      </div>
 
       <div className="flex justify-end">
         <button className="btn btn-primary">Submit ticket</button>

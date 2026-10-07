@@ -30,7 +30,7 @@ export default async function EventsPage({ searchParams }: PageProps<"/events">)
     <>
       <PageHeader
         title="Events"
-        subtitle="School events and the IT / Facilities support they need"
+        subtitle="School events and the IT, Facilities and Kitchen support they need"
         actions={
           <Link href="/events/new" className="btn btn-primary">
             <Plus className="size-4" /> New event

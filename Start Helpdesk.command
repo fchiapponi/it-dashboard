@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Double-click this file to install (first run only), build, start and open
-# the TASIS helpdesk. Safe to double-click again any time — if it's already
+# TASIS One. Safe to double-click again any time — if it's already
 # running it just reopens the browser tab.
 
 set -e
@@ -9,7 +9,7 @@ cd "$(dirname "$0")"
 PORT="${PORT:-3060}"
 URL="http://localhost:${PORT}"
 
-echo "== TASIS Helpdesk launcher =="
+echo "== TASIS One launcher =="
 echo
 
 # --- 1. Node.js present? ------------------------------------------------
@@ -30,7 +30,7 @@ echo "Node.js: $(node --version)"
 
 # --- 2. Already running? -------------------------------------------------
 if curl -sf "$URL" >/dev/null 2>&1; then
-  echo "Helpdesk is already running — opening it in your browser."
+  echo "TASIS One is already running — opening it in your browser."
   open "$URL"
   sleep 1
   exit 0
@@ -64,7 +64,7 @@ echo "Building..."
 npm run build
 
 # --- 7. Start in the background --------------------------------------------
-echo "Starting the helpdesk on port ${PORT}..."
+echo "Starting TASIS One on port ${PORT}..."
 PORT="$PORT" nohup npx next start -p "$PORT" > "$PWD/helpdesk.log" 2>&1 &
 disown
 
@@ -77,9 +77,9 @@ done
 
 if curl -sf "$URL" >/dev/null 2>&1; then
   echo
-  echo "Helpdesk is up: $URL"
+  echo "TASIS One is up: $URL"
   open "$URL"
-  echo "You can close this window — the helpdesk keeps running in the background."
+  echo "You can close this window — TASIS One keeps running in the background."
   echo "Logs: $PWD/helpdesk.log"
 else
   echo

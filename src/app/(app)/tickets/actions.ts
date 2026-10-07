@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { assert, isAgentOf, requireUser } from "@/lib/auth";
-import { int, label, oneOf, req, str, TICKET_PRIORITIES, TICKET_STATUSES } from "@/lib/format";
+import { fmtDate, fromLocalInput, int, label, oneOf, req, str, TICKET_PRIORITIES, TICKET_STATUSES } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { canViewTicket, createTicketRecord } from "@/lib/tickets";
 
@@ -32,6 +32,7 @@ export async function createTicket(form: FormData) {
         locationId: str(form, "locationId"),
         assetId: asset?.id ?? null,
         requesterId: user.id,
+        dueAt: fromLocalInput(str(form, "dueAt")),
       },
       tx,
     ),
@@ -46,13 +47,14 @@ async function loadForAgent(ticketId: string) {
   return { user, ticket };
 }
 
-/** Agent-side changes: status, priority, assignee, category, department. Logs each change. */
+/** Agent-side changes: status, priority, assignee, due date, category, department. Logs each change. */
 export async function updateTicket(ticketId: string, form: FormData) {
   const { user, ticket } = await loadForAgent(ticketId);
 
   const status = oneOf(str(form, "status"), TICKET_STATUSES, ticket.status as (typeof TICKET_STATUSES)[number]);
   const priority = oneOf(str(form, "priority"), TICKET_PRIORITIES, ticket.priority as (typeof TICKET_PRIORITIES)[number]);
   const assigneeId = str(form, "assigneeId");
+  const dueAt = fromLocalInput(str(form, "dueAt"));
   const departmentId = str(form, "departmentId") ?? ticket.departmentId;
   // Moving to another department drops the category, which belongs to the old one.
   const categoryId = departmentId === ticket.departmentId ? str(form, "categoryId") : null;
@@ -64,6 +66,7 @@ export async function updateTicket(ticketId: string, form: FormData) {
     const a = assigneeId ? await prisma.user.findUnique({ where: { id: assigneeId } }) : null;
     events.push(a ? `assigned to ${a.name}` : "unassigned");
   }
+  if (dueAt?.getTime() !== ticket.dueAt?.getTime()) events.push(dueAt ? `set the due date to ${fmtDate(dueAt)}` : "removed the due date");
   if (departmentId !== ticket.departmentId) {
     const d = await prisma.department.findUniqueOrThrow({ where: { id: departmentId } });
     events.push(`moved to ${d.name}`);
@@ -77,6 +80,7 @@ export async function updateTicket(ticketId: string, form: FormData) {
       status,
       priority,
       assigneeId,
+      dueAt,
       departmentId,
       categoryId,
       resolvedAt: done ? (ticket.resolvedAt ?? new Date()) : null,
@@ -112,6 +116,8 @@ export async function addComment(ticketId: string, form: FormData) {
   await prisma.ticketActivity.create({
     data: { ticketId, authorId: user.id, kind: internal ? "note" : "comment", body: req(form, "body") },
   });
+  // Replies count as an update, so the ticket list sorts recently answered tickets first.
+  await prisma.ticket.update({ where: { id: ticketId }, data: { updatedAt: new Date() } });
 
   // A requester replying to a resolved or waiting ticket puts it back in the queue.
   if (!agent && ["resolved", "waiting"].includes(ticket.status)) {

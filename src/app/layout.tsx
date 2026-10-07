@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "TASIS Helpdesk",
+  title: "TASIS One",
   description: "Tickets, inventory, visitors, deliveries and events for TASIS staff",
 };
 

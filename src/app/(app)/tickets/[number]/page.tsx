@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, DeptBadge, Field, PageHeader, Section } from "@/components/ui";
+import { Badge, DeptBadge, Field, PageHeader, Section, toneClasses } from "@/components/ui";
 import { isAgentOf, requireUser } from "@/lib/auth";
-import { fmtDateTime, fmtRelative, label, TICKET_PRIORITIES, TICKET_STATUSES } from "@/lib/format";
+import { fmtDate, fmtDateTime, fmtRelative, label, startOfToday, TICKET_PRIORITIES, TICKET_STATUSES, toLocalInput } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { canViewTicket } from "@/lib/tickets";
 import { cn } from "@/lib/utils";
 import { addComment, closeOwnTicket, takeTicket, updateTicket, consumeSupply } from "../actions";
+import { StatusPills } from "./StatusPills";
 
 export default async function TicketPage({ params }: PageProps<"/tickets/[number]">) {
   const user = await requireUser();
@@ -122,15 +123,15 @@ export default async function TicketPage({ params }: PageProps<"/tickets/[number
           {agent ? (
             <Section title="Manage">
               <form action={updateTicket.bind(null, ticket.id)} className="space-y-3 p-4">
-                <Field label="Status">
-                  <select name="status" defaultValue={ticket.status} className="input">
-                    {TICKET_STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {label(s)}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                <div>
+                  <span className="label">Status</span>
+                  <StatusPills
+                    key={ticket.status}
+                    name="status"
+                    defaultValue={ticket.status}
+                    options={TICKET_STATUSES.map((s) => ({ value: s, label: label(s), className: toneClasses(s) }))}
+                  />
+                </div>
                 <Field label="Priority">
                   <select name="priority" defaultValue={ticket.priority} className="input">
                     {TICKET_PRIORITIES.map((s) => (
@@ -149,6 +150,9 @@ export default async function TicketPage({ params }: PageProps<"/tickets/[number
                       </option>
                     ))}
                   </select>
+                </Field>
+                <Field label="Due date">
+                  <input name="dueAt" type="date" defaultValue={toLocalInput(ticket.dueAt).slice(0, 10)} className="input" />
                 </Field>
                 <Field label="Category">
                   <select name="categoryId" defaultValue={ticket.categoryId ?? ""} className="input">
@@ -202,7 +206,15 @@ export default async function TicketPage({ params }: PageProps<"/tickets/[number
                   <div className="text-xs text-dim">{fmtDateTime(ticket.event.startsAt)}</div>
                 </Detail>
               )}
-              <Detail term="Created">{fmtDateTime(ticket.createdAt)}</Detail>
+              {ticket.dueAt && (
+                <Detail term="Due">
+                  <span className={cn(open && ticket.dueAt < startOfToday() && "font-medium text-red-600 dark:text-red-400")}>
+                    {fmtDate(ticket.dueAt)}
+                    {open && ticket.dueAt < startOfToday() && " · overdue"}
+                  </span>
+                </Detail>
+              )}
+              <Detail term="Opened">{fmtDateTime(ticket.createdAt)}</Detail>
               {ticket.resolvedAt && <Detail term="Resolved">{fmtDateTime(ticket.resolvedAt)}</Detail>}
             </dl>
           </Section>

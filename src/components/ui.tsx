@@ -10,7 +10,13 @@ const TONE_CLASSES = {
   gray: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400",
   red: "bg-red-500/10 text-red-700 dark:text-red-300",
   violet: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+  cyan: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
 };
+
+/** Color classes for a status/priority key, as used by Badge. */
+export function toneClasses(value: string) {
+  return TONE_CLASSES[TONES[value] ?? "gray"];
+}
 
 /** Pill for a status/priority key; its label and color come from lib/format. */
 export function Badge({ value, tone, children }: { value?: string; tone?: keyof typeof TONE_CLASSES; children?: ReactNode }) {

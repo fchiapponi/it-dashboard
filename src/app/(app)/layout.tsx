@@ -17,11 +17,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const items: NavItem[] = [
     { href: "/", label: "Dashboard", icon: "dashboard" },
     { href: "/tickets", label: "Tickets", icon: "tickets" },
-    { href: "/events", label: "Events", icon: "events" },
+    { href: "/boards", label: "My board", icon: "boards" },
+    ...(isAgent(user) ? [{ href: "/inventory", label: "Inventory", icon: "inventory" } as NavItem] : []),
     { href: "/visitors", label: "Visitors", icon: "visitors" },
     { href: "/deliveries", label: "Deliveries", icon: "deliveries", badge: isReception(user) ? undefined : myDeliveries },
   ];
-  if (isAgent(user)) items.push({ href: "/inventory", label: "Inventory", icon: "inventory" });
   if (user.isAdmin) items.push({ href: "/admin", label: "Admin", icon: "admin" });
 
   return (

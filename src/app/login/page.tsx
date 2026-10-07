@@ -19,10 +19,10 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       <div className="card w-full max-w-sm p-8">
         <div className="mb-6 flex items-center gap-2 text-lg font-semibold">
           <span className="grid size-8 place-items-center rounded-lg bg-accent text-sm font-bold text-accent-fg">T</span>
-          TASIS Helpdesk
+          TASIS One
         </div>
         <p className="mb-6 text-sm text-dim">
-          Report problems to IT and Facilities, register visitors, track deliveries and request event support.
+          Report problems to IT, Facilities and Kitchen & Dining, register visitors, track deliveries and request event support.
         </p>
         {error && <p className="mb-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">{error}</p>}
         <a href={`/api/auth/google?returnTo=${encodeURIComponent(returnTo)}`} className="btn btn-primary w-full py-2.5">

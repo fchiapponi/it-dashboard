@@ -37,6 +37,7 @@ async function createSupportTickets(
         requesterId: user.id,
         eventId: event.id,
         priority: "normal",
+        dueAt: event.startsAt,
       },
       tx,
     );

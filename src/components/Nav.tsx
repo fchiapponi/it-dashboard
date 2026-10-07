@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Boxes, CalendarDays, LayoutDashboard, LogOut, Package, Settings, Ticket, UserCheck } from "lucide-react";
+import { Boxes, CalendarDays, LayoutDashboard, LogOut, Package, Settings, SquareKanban, Ticket, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ICONS = {
   dashboard: LayoutDashboard,
   tickets: Ticket,
+  boards: SquareKanban,
   events: CalendarDays,
   visitors: UserCheck,
   deliveries: Package,
@@ -26,7 +27,7 @@ export function Nav({ items, user, signOut }: { items: NavItem[]; user: { name: 
       <div className="flex items-center justify-between px-4 py-3 md:py-5">
         <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
           <span className="grid size-7 place-items-center rounded-lg bg-accent text-xs font-bold text-accent-fg">T</span>
-          TASIS Helpdesk
+          TASIS One
         </Link>
         <form action={signOut} className="md:hidden">
           <button className="btn px-2" title="Sign out">

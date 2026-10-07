@@ -3,7 +3,8 @@ import type { Prisma } from "@/generated/prisma";
 import { isAgentOf, type CurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export const ACTIVE_STATUSES = ["open", "in_progress", "waiting"];
+// Standby tickets are parked but not done, so they still count as active.
+export const ACTIVE_STATUSES = ["open", "in_progress", "waiting", "standby"];
 
 /** Tickets a user may see: their own requests plus every ticket of departments they belong to. */
 export function visibleTickets(user: CurrentUser): Prisma.TicketWhereInput {

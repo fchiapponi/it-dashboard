@@ -23,6 +23,13 @@ const DEPARTMENTS = [
     categories: ["Electrical", "Plumbing", "Heating / AC", "Furniture", "Cleaning", "Room setup", "Grounds"],
   },
   {
+    name: "Kitchen & Dining",
+    slug: "kitchen",
+    color: "#dc2626",
+    description: "Catering for events, special diets and allergies, dining hall and kitchen equipment",
+    categories: ["Catering request", "Special diet / allergies", "Dining hall", "Kitchen equipment", "Menu feedback", "Hygiene"],
+  },
+  {
     name: "Reception",
     slug: "reception",
     color: "#059669",

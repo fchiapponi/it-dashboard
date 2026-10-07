@@ -1,14 +1,14 @@
-# TASIS Helpdesk
+# TASIS One
 
 One web app for TASIS staff to:
 
-- **Tickets**: report problems to **IT** or **Facilities** (more departments can be added from Admin). Each ticket has a category, location, priority, assignee, a reply thread and internal notes that only agents can see.
+- **Tickets**: report problems to **IT**, **Facilities** or **Kitchen & Dining** (more departments can be added from Admin). Each ticket has a category, location, priority, assignee, a reply thread and internal notes that only agents can see.
 - **Inventory**:
   - **Assets** with serial numbers. Each one has a QR label; scanning it opens the asset page with a *Report a problem* button.
   - **Consumables**, with stock movements and low-stock warnings. Agents can book consumables used on a ticket directly from that ticket.
 - **Visitors**: staff pre-register the people they expect. Reception checks visitors in and out with a badge number, prints visitor badges and always has an "on site now" list.
 - **Deliveries**: reception logs incoming parcels and marks them as collected. Recipients see what's waiting for them on their dashboard.
-- **Events**: staff create events and say what IT and Facilities need to do. Each need becomes a ticket for that department, linked back to the event. The app warns when two events are booked in the same place at the same time.
+- **Events**: staff create events and say what IT, Facilities and Kitchen & Dining need to do. Each need becomes a ticket for that department, linked back to the event. The app warns when two events are booked in the same place at the same time.
 
 Same stack and hosting model as the Control Room dashboard: Next.js 16, Prisma 6 + SQLite and Tailwind 4, running on the school Mac.
 
@@ -28,7 +28,7 @@ npm install
 cp .env.example .env          # then fill it in — see below
 npx prisma generate
 npx prisma migrate deploy     # creates prisma/dev.db
-npm run db:seed               # IT / Facilities / Reception, categories, a few buildings
+npm run db:seed               # IT / Facilities / Kitchen & Dining / Reception, categories, a few buildings
 npm run build
 npm run start                 # http://localhost:3060
 ```

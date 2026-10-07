@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { CalendarDays, Package, Plus, UserCheck } from "lucide-react";
+import { Package, Plus, UserCheck } from "lucide-react";
 import { Badge, DeptBadge, Empty, PageHeader, Section, Stat } from "@/components/ui";
 import { isAgent, isReception, requireUser } from "@/lib/auth";
-import { fmtDate, fmtRelative, fmtTime, startOfToday } from "@/lib/format";
+import { fmtRelative, startOfToday } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { ACTIVE_STATUSES, lowStockCount } from "@/lib/tickets";
 
@@ -13,7 +13,7 @@ export default async function Dashboard() {
   const today = startOfToday();
   const queueWhere = user.isAdmin && !user.departmentIds.length ? {} : { departmentId: { in: user.departmentIds } };
 
-  const [myOpen, myDeliveries, upcoming, queue] = await Promise.all([
+  const [myOpen, myDeliveries, queue] = await Promise.all([
     prisma.ticket.findMany({
       where: { requesterId: user.id, status: { in: ACTIVE_STATUSES } },
       include: { department: true },
@@ -21,23 +21,19 @@ export default async function Dashboard() {
       take: 8,
     }),
     prisma.delivery.count({ where: { recipientId: user.id, status: "received" } }),
-    prisma.event.findMany({
-      where: { endsAt: { gte: new Date() }, status: { not: "cancelled" } },
-      include: { location: true },
-      orderBy: { startsAt: "asc" },
-      take: 5,
-    }),
     agent
       ? Promise.all([
           prisma.ticket.count({ where: { ...queueWhere, status: "open", assigneeId: null } }),
           prisma.ticket.count({ where: { assigneeId: user.id, status: { in: ACTIVE_STATUSES } } }),
           prisma.ticket.count({ where: { ...queueWhere, status: { in: ACTIVE_STATUSES }, priority: "urgent" } }),
           lowStockCount(user.isAdmin ? undefined : user.departmentIds),
-          prisma.ticket.findMany({
-            where: { ...queueWhere, status: { in: ACTIVE_STATUSES } },
-            include: { department: true, requester: true },
-            orderBy: [{ updatedAt: "desc" }],
-            take: 8,
+          // One list per department: tickets of different departments are never mixed.
+          prisma.department.findMany({
+            where: { takesTickets: true, ...(user.isAdmin && !user.departmentIds.length ? {} : { id: { in: user.departmentIds } }) },
+            orderBy: { name: "asc" },
+            include: {
+              tickets: { where: { status: { in: ACTIVE_STATUSES } }, orderBy: [{ updatedAt: "desc" }], take: 6 },
+            },
           }),
         ])
       : null,
@@ -90,18 +86,26 @@ export default async function Dashboard() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {queue && (
-          <Section title="Department queue" actions={<Link href="/tickets?view=queue" className="link text-xs">All</Link>} className="lg:col-span-2">
-            {queue[4].length === 0 ? (
-              <Empty>Queue is empty. 🎉</Empty>
+        {queue?.[4].map((d) => (
+          <Section
+            key={d.id}
+            title={<DeptBadge dept={d} />}
+            actions={
+              <Link href={`/tickets?dept=${d.slug}`} className="link text-xs">
+                All
+              </Link>
+            }
+            className="lg:col-span-2"
+          >
+            {d.tickets.length === 0 ? (
+              <Empty>{d.name} queue is empty. 🎉</Empty>
             ) : (
               <ul className="divide-y divide-line">
-                {queue[4].map((t) => (
+                {d.tickets.map((t) => (
                   <li key={t.id}>
                     <Link href={`/tickets/${t.number}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm hover:bg-panel-muted">
                       <span className="text-dim tabular-nums">#{t.number}</span>
                       <span className="min-w-0 flex-1 truncate font-medium">{t.title}</span>
-                      <DeptBadge dept={t.department} />
                       <Badge value={t.priority} />
                       <Badge value={t.status} />
                       <span className="w-20 text-right text-xs text-dim">{fmtRelative(t.updatedAt)}</span>
@@ -111,7 +115,7 @@ export default async function Dashboard() {
               </ul>
             )}
           </Section>
-        )}
+        ))}
 
         <Section title="My open requests" actions={<Link href="/tickets?view=mine" className="link text-xs">All</Link>}>
           {myOpen.length === 0 ? (
@@ -124,26 +128,6 @@ export default async function Dashboard() {
                     <span className="min-w-0 flex-1 truncate">{t.title}</span>
                     <DeptBadge dept={t.department} />
                     <Badge value={t.status} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Section>
-
-        <Section title="Upcoming events" actions={<Link href="/events" className="link text-xs">All</Link>}>
-          {upcoming.length === 0 ? (
-            <Empty>No upcoming events.</Empty>
-          ) : (
-            <ul className="divide-y divide-line">
-              {upcoming.map((e) => (
-                <li key={e.id}>
-                  <Link href={`/events/${e.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-panel-muted">
-                    <CalendarDays className="size-4 shrink-0 text-dim" />
-                    <span className="min-w-0 flex-1 truncate">{e.title}</span>
-                    <span className="text-xs whitespace-nowrap text-dim">
-                      {fmtDate(e.startsAt)} {fmtTime(e.startsAt)}
-                    </span>
                   </Link>
                 </li>
               ))}

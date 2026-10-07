@@ -100,7 +100,7 @@ export function oneOf<T extends string>(value: string | null, allowed: readonly 
 
 // -------------------------------------------------------------------- labels
 
-export const TICKET_STATUSES = ["open", "in_progress", "waiting", "resolved", "closed"] as const;
+export const TICKET_STATUSES = ["open", "in_progress", "waiting", "standby", "resolved", "closed"] as const;
 export const TICKET_PRIORITIES = ["low", "normal", "high", "urgent"] as const;
 export const ASSET_STATUSES = ["in_use", "in_stock", "repair", "retired"] as const;
 export const EVENT_STATUSES = ["requested", "confirmed", "cancelled"] as const;
@@ -109,6 +109,7 @@ export const LABELS: Record<string, string> = {
   open: "Open",
   in_progress: "In progress",
   waiting: "Waiting",
+  standby: "Standby",
   resolved: "Resolved",
   closed: "Closed",
   low: "Low",
@@ -129,10 +130,11 @@ export const LABELS: Record<string, string> = {
 
 export const label = (key: string) => LABELS[key] ?? key;
 
-export const TONES: Record<string, "blue" | "amber" | "green" | "gray" | "red" | "violet"> = {
+export const TONES: Record<string, "blue" | "amber" | "green" | "gray" | "red" | "violet" | "cyan"> = {
   open: "blue",
   in_progress: "violet",
   waiting: "amber",
+  standby: "cyan",
   resolved: "green",
   closed: "gray",
   low: "gray",
