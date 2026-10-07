@@ -203,7 +203,7 @@ export default function TvDashboardPage() {
               title="Pages printed"
               className="ml-auto shrink-0 text-[0.5625rem] tabular-nums text-[var(--text-dim)]"
             >
-              {p.pageCount.toLocaleString("it-IT")} pg
+              {p.pageCount.toLocaleString("it-IT")}
             </span>
           )}
           <StatusBadge
