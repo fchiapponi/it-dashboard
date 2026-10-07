@@ -18,9 +18,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <main className="grid min-h-screen place-items-center px-4">
       <div className="card w-full max-w-sm p-8">
-        <div className="mb-6 flex items-center gap-3 text-lg font-semibold">
-          <Image src="/tasis-logo.png" alt="TASIS" width={150} height={222} priority className="h-14 w-auto dark:rounded-md dark:bg-white dark:p-1" />
-          TASIS One
+        <div className="mb-6 flex justify-center">
+          <Image src="/tasis-crest.png" alt="TASIS One" width={235} height={175} priority className="h-20 w-auto" />
         </div>
         <p className="mb-6 text-sm text-dim">
           Report problems to IT, Facilities and Kitchen & Dining, register visitors, track deliveries and request event support.

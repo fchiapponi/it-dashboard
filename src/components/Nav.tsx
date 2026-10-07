@@ -25,12 +25,11 @@ export function Nav({ items, user, signOut }: { items: NavItem[]; user: { name: 
 
   return (
     <aside className="no-print border-b border-line bg-panel md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col md:border-r md:border-b-0">
-      <div className="flex items-center justify-between px-4 py-3 md:py-5">
-        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <Image src="/tasis-logo.png" alt="TASIS" width={150} height={222} priority className="h-9 w-auto dark:rounded dark:bg-white dark:p-0.5" />
-          TASIS One
+      <div className="relative flex items-center justify-center px-4 py-3 md:py-5">
+        <Link href="/" className="flex items-center">
+          <Image src="/tasis-crest.png" alt="TASIS One" width={235} height={175} priority className="h-12 w-auto md:h-16" />
         </Link>
-        <form action={signOut} className="md:hidden">
+        <form action={signOut} className="absolute right-4 md:hidden">
           <button className="btn px-2" title="Sign out">
             <LogOut className="size-4" />
           </button>
