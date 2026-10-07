@@ -1,4 +1,5 @@
 import { Field } from "@/components/ui";
+import { parseExtra } from "@/lib/assets";
 import { ASSET_STATUSES, label, toLocalInput } from "@/lib/format";
 
 type Option = { id: string; name: string };
@@ -16,11 +17,33 @@ type AssetDefaults = {
   purchaseDate?: Date | null;
   warrantyUntil?: Date | null;
   notes?: string | null;
+  extra?: string | null;
 };
 
 export const ASSET_TYPES = ["Laptop", "Desktop", "iPad", "Chromebook", "Monitor", "Projector", "Interactive display", "Printer", "Camera", "Phone", "Network", "Furniture", "Tool", "Vehicle", "Other"];
 
-export function AssetFields({ a = {}, departments, locations, isNew }: { a?: AssetDefaults; departments: Option[]; locations: Option[]; isNew?: boolean }) {
+/**
+ * `fieldLabels` are custom field labels used by similar assets: they are shown
+ * as empty rows so every iPad (say) gets the same columns, and are suggested
+ * when typing a new label.
+ */
+export function AssetFields({
+  a = {},
+  departments,
+  locations,
+  isNew,
+  fieldLabels = [],
+}: {
+  a?: AssetDefaults;
+  departments: Option[];
+  locations: Option[];
+  isNew?: boolean;
+  fieldLabels?: string[];
+}) {
+  const extra = parseExtra(a.extra);
+  const rows: [string, string][] = [...Object.entries(extra), ...fieldLabels.filter((k) => !(k in extra)).map((k): [string, string] => [k, ""])];
+  for (let i = 0; i < 2; i++) rows.push(["", ""]);
+
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <Field label="Name">
@@ -88,6 +111,22 @@ export function AssetFields({ a = {}, departments, locations, isNew }: { a?: Ass
       <Field label="Notes" className="sm:col-span-2">
         <textarea name="notes" rows={3} defaultValue={a.notes ?? ""} className="input" />
       </Field>
+      <div className="sm:col-span-2">
+        <span className="label">Additional fields (e.g. IP address, Apple ID, toner model)</span>
+        <div className="space-y-2">
+          {rows.map(([k, v], i) => (
+            <div key={i} className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2">
+              <input name="extraKey" defaultValue={k} placeholder="Field" list="extra-labels" aria-label="Field name" className="input" />
+              <input name="extraValue" defaultValue={v} placeholder="Value" aria-label="Field value" className="input" />
+            </div>
+          ))}
+        </div>
+        <datalist id="extra-labels">
+          {fieldLabels.map((k) => (
+            <option key={k} value={k} />
+          ))}
+        </datalist>
+      </div>
     </div>
   );
 }

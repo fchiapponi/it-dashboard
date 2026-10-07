@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { stringifyExtra } from "@/lib/assets";
 import { assert, isAgentOf, requireUser } from "@/lib/auth";
 import { ASSET_STATUSES, fromLocalInput, int, label, oneOf, req, str } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -10,6 +11,12 @@ async function nextAssetTag() {
   const last = await prisma.asset.findFirst({ where: { tag: { startsWith: "TAS-" } }, orderBy: { tag: "desc" } });
   const n = last ? Number.parseInt(last.tag.slice(4), 10) + 1 : 1;
   return `TAS-${String(Number.isFinite(n) ? n : 1).padStart(5, "0")}`;
+}
+
+function extraFields(form: FormData) {
+  const keys = form.getAll("extraKey").map(String);
+  const values = form.getAll("extraValue").map(String);
+  return stringifyExtra(Object.fromEntries(keys.map((k, i) => [k.trim(), (values[i] ?? "").trim()])));
 }
 
 function assetFields(form: FormData) {
@@ -26,6 +33,7 @@ function assetFields(form: FormData) {
     purchaseDate: fromLocalInput(str(form, "purchaseDate")),
     warrantyUntil: fromLocalInput(str(form, "warrantyUntil")),
     notes: str(form, "notes"),
+    extra: extraFields(form),
   };
 }
 
@@ -39,6 +47,8 @@ export async function createAsset(form: FormData) {
   await prisma.asset.create({
     data: { ...data, tag, activity: { create: { actorId: user.id, body: "added to inventory" } } },
   });
+  // "Save & add another" opens a new form pre-filled like this one.
+  if (form.get("then") === "another") redirect(`/inventory/new?copy=${tag}&added=${tag}`);
   redirect(`/inventory/${tag}`);
 }
 
@@ -82,6 +92,65 @@ export async function addAssetNote(assetId: string, form: FormData) {
   assert(isAgentOf(user, asset.departmentId));
   await prisma.assetActivity.create({ data: { assetId, actorId: user.id, body: req(form, "body") } });
   revalidatePath(`/inventory/${asset.tag}`);
+}
+
+/** Applies the same change to every ticked asset in the inventory list. */
+export async function bulkUpdateAssets(form: FormData) {
+  const user = await requireUser();
+  const tags = form.getAll("tag").map(String);
+  const status = str(form, "bulkStatus");
+  const locationId = str(form, "bulkLocation");
+  const departmentId = str(form, "bulkDept");
+  const assignedTo = str(form, "bulkAssigned");
+  const unassign = form.get("bulkUnassign") === "on";
+  if (!tags.length) return;
+
+  const data: { status?: string; locationId?: string | null; departmentId?: string; assignedTo?: string | null } = {};
+  const changes: string[] = [];
+  if (status) {
+    data.status = oneOf(status, ASSET_STATUSES, "in_use");
+    changes.push(`changed status to ${label(data.status)}`);
+  }
+  if (locationId) {
+    const loc = await prisma.location.findUniqueOrThrow({ where: { id: locationId } });
+    data.locationId = loc.id;
+    changes.push(`moved to ${loc.name}`);
+  }
+  if (departmentId) {
+    assert(isAgentOf(user, departmentId));
+    data.departmentId = departmentId;
+    changes.push("changed department");
+  }
+  if (unassign) {
+    data.assignedTo = null;
+    changes.push("returned (unassigned)");
+  } else if (assignedTo) {
+    data.assignedTo = assignedTo;
+    changes.push(`assigned to ${assignedTo}`);
+  }
+  if (!changes.length) return;
+
+  const assets = await prisma.asset.findMany({ where: { tag: { in: tags } } });
+  for (const a of assets) assert(isAgentOf(user, a.departmentId));
+  await prisma.$transaction(
+    assets.map((a) =>
+      prisma.asset.update({
+        where: { id: a.id },
+        data: { ...data, activity: { create: { actorId: user.id, body: `${changes.join(", ")} (bulk edit)` } } },
+      }),
+    ),
+  );
+  revalidatePath("/inventory");
+}
+
+/** Permanently removes the ticked assets (retiring is usually the better choice). */
+export async function deleteAssets(form: FormData) {
+  const user = await requireUser();
+  const tags = form.getAll("tag").map(String);
+  const assets = await prisma.asset.findMany({ where: { tag: { in: tags } } });
+  for (const a of assets) assert(isAgentOf(user, a.departmentId));
+  await prisma.asset.deleteMany({ where: { id: { in: assets.map((a) => a.id) } } });
+  revalidatePath("/inventory");
 }
 
 // ---------------------------------------------------------------- supplies

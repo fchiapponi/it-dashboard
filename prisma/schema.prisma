@@ -175,6 +175,9 @@ model Asset {
   purchaseDate  DateTime?
   warrantyUntil DateTime?
   notes         String?
+  // Extra columns that vary by type (IP address, Apple ID, toner, ...) as a
+  // JSON object of label -> text; filled by hand or by spreadsheet import.
+  extra         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

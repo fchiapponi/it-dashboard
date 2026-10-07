@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Printer, TriangleAlert } from "lucide-react";
+import { Copy, Printer, TriangleAlert } from "lucide-react";
 import { Badge, DeptBadge, Empty, PageHeader, Section } from "@/components/ui";
+import { fieldLabelsFor } from "@/lib/assets";
 import { isAgentOf, requireUser } from "@/lib/auth";
 import { fmtDate, fmtDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -49,10 +50,11 @@ export default async function AssetPage({ params }: PageProps<"/inventory/[tag]"
     );
   }
 
-  const [departments, locations, qr] = await Promise.all([
+  const [departments, locations, qr, fieldLabels] = await Promise.all([
     managedDepartments(user),
     prisma.location.findMany({ orderBy: { name: "asc" } }),
     assetQrSvg(asset.tag),
+    fieldLabelsFor(asset.type),
   ]);
 
   return (
@@ -68,6 +70,9 @@ export default async function AssetPage({ params }: PageProps<"/inventory/[tag]"
         }
         actions={
           <>
+            <Link href={`/inventory/new?copy=${asset.tag}`} className="btn" title="Add a new item pre-filled like this one">
+              <Copy className="size-4" /> Duplicate
+            </Link>
             <Link href={`/inventory/labels?tag=${asset.tag}`} className="btn">
               <Printer className="size-4" /> Print label
             </Link>
@@ -80,7 +85,7 @@ export default async function AssetPage({ params }: PageProps<"/inventory/[tag]"
         <div className="min-w-0 space-y-6">
           <Section title="Details">
             <form action={updateAsset.bind(null, asset.id)} className="space-y-4 p-5">
-              <AssetFields a={asset} departments={departments} locations={locations} />
+              <AssetFields a={asset} departments={departments} locations={locations} fieldLabels={fieldLabels} />
               <div className="flex justify-end">
                 <button className="btn btn-primary">Save changes</button>
               </div>
