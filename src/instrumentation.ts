@@ -1,6 +1,7 @@
 // Runs once when the server starts. Starts the ticket@ mailbox poller when
 // Gmail is configured (see "Tickets by email" in the README), and re-reads
-// the network printers (model, serial, toner levels) on a timer.
+// the network printers (model, serial, toner levels) and the kitchen's
+// meal-count sheet on a timer.
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
@@ -12,6 +13,16 @@ export async function register() {
       .catch((e) => console.error("[printers]", e));
   setInterval(refresh, minutes * 60 * 1000);
   void refresh();
+
+  if (process.env.DINING_SHEET_ID) {
+    const { diningRefreshMs, getDiningData } = await import("@/lib/dining");
+    const read = () =>
+      getDiningData(true)
+        .then((d) => console.log(`[dining] ${d.error ? `read failed: ${d.error}` : `read ${d.days.length} days`}`))
+        .catch((e) => console.error("[dining]", e));
+    setInterval(read, diningRefreshMs());
+    void read();
+  }
 
   if (!process.env.TICKET_MAILBOX || !process.env.GOOGLE_SERVICE_ACCOUNT_FILE) return;
   const { pollTicketMailbox } = await import("@/lib/emailTickets");

@@ -9,6 +9,7 @@ One web app for TASIS staff to:
 - **Visitors**: staff pre-register the people they expect. Reception checks visitors in and out with a badge number, prints visitor badges and always has an "on site now" list.
 - **Deliveries**: reception logs incoming parcels and marks them as collected. Recipients see what's waiting for them on their dashboard.
 - **Events**: staff create events and say what IT, Facilities and Kitchen & Dining need to do. Each need becomes a ticket for that department, linked back to the event. The app warns when two events are booked in the same place at the same time.
+- **Dining**: a dashboard of the meals served each day in De Nobili, Hadsall and Focolare, read from the kitchen's Google Sheet and matched against the school calendar (classes, weekends, holidays, orientation, summer).
 
 Same stack and hosting model as the Control Room dashboard: Next.js 16, Prisma 6 + SQLite and Tailwind 4, running on the school's internal Windows server.
 
@@ -103,6 +104,22 @@ Gmail tags every email it has handled with the label `helpdesk-processed`. You c
 | `EMAIL_POLL_SECONDS` | How often to check the mailbox (default 60). |
 | `EMAIL_TICKETS_DEFAULT_DEPARTMENT` | Department slug for emails the AI couldn't sort (default `it`). |
 | `ANTHROPIC_API_KEY` | Claude API key used to sort emails. |
+
+## Dining dashboard
+
+The **Dining** page reads the kitchen's Google Sheet of daily meal counts: one tab per month, one row per day, with breakfast, lunch and dinner for each dining hall. Words typed in a meal cell instead of a number (BRUNCH, BBQ, ...) and the notes in column K show up as kitchen notes.
+
+1. Share the sheet as **Anyone with the link can view**. The app downloads it without signing in to Google.
+2. Put its ID in `DINING_SHEET_ID` (the part of the link between `/d/` and `/edit`) and restart the app.
+
+The app re-reads the sheet every `DINING_REFRESH_HOURS` (default 6), and **Refresh now** on the page re-reads it straight away. Open pages pick up the latest read every 5 minutes. If Google can't be reached, the page says so and keeps showing the last good read.
+
+The school calendar the figures are matched against lives in `src/lib/schoolCalendar.ts`, copied from the academic calendar PDFs on the Parent Portal. It covers January 2026 to June 2027: add the next school year there when it is published.
+
+| Variable | Meaning |
+|---|---|
+| `DINING_SHEET_ID` | ID of the kitchen's meal-count sheet. Leave it empty to turn the page's data off. |
+| `DINING_REFRESH_HOURS` | How often the sheet is re-read in the background (default 6). |
 
 ## Day-to-day
 

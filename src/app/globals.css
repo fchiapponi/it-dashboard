@@ -12,6 +12,20 @@
   --accent: #1d4ed8;
   --accent-fg: #ffffff;
   --danger: #b91c1c;
+  /* Dining charts: one color per dining hall, one per school-calendar day kind */
+  --hall-1: #2a78d6;
+  --hall-2: #eb6834;
+  --hall-3: #1baf7a;
+  --dining-event: #8a5a00;
+  --cal-classes: #a9b1bd;
+  --cal-weekend: #d9dde3;
+  --cal-special: #7b67c4;
+  --cal-orientation: #d8b400;
+  --cal-holiday: #cf5a52;
+  --cal-summer: #c79a5a;
+  --meal-1: #ec8fba;
+  --meal-2: #d0477f;
+  --meal-3: #93204f;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -25,6 +39,19 @@
     --accent: #4f7cff;
     --accent-fg: #ffffff;
     --danger: #f87171;
+    --hall-1: #3987e5;
+    --hall-2: #d95926;
+    --hall-3: #199e70;
+    --dining-event: #e0b04a;
+    --cal-classes: #5d6673;
+    --cal-weekend: #2f3640;
+    --cal-special: #9385e0;
+    --cal-orientation: #c9a800;
+    --cal-holiday: #d9605a;
+    --cal-summer: #b08850;
+    --meal-1: #e88bb6;
+    --meal-2: #cc4a85;
+    --meal-3: #8f2a58;
   }
 }
 
@@ -44,6 +71,25 @@
 body {
   background: var(--bg);
   color: var(--text);
+}
+
+/* A horizontal scroll bar that stays visible, also on Macs set to hide scroll bars.
+   Styling the webkit bar turns macOS overlay bars into permanent ones. */
+.scroll-x-visible::-webkit-scrollbar {
+  height: 8px;
+}
+.scroll-x-visible::-webkit-scrollbar-track {
+  background: var(--panel-muted);
+  border-radius: 4px;
+}
+.scroll-x-visible::-webkit-scrollbar-thumb {
+  background: var(--text-dim);
+  border-radius: 4px;
+}
+@supports not selector(::-webkit-scrollbar) {
+  .scroll-x-visible {
+    scrollbar-color: var(--text-dim) var(--panel-muted);
+  }
 }
 
 @layer components {
