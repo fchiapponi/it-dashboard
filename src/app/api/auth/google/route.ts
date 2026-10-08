@@ -1,12 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
-import { googleSignInEnabled, OAUTH_STATE_COOKIE } from "@/lib/auth";
+import { OAUTH_STATE_COOKIE, signInRequired } from "@/lib/auth";
 import { safeReturnTo } from "@/lib/format";
 
 /** Starts the Google sign-in: redirects to Google's consent screen. */
 export async function GET(request: NextRequest) {
-  if (!googleSignInEnabled()) return NextResponse.redirect(new URL("/login", request.url));
+  if (!signInRequired()) return NextResponse.redirect(new URL("/", request.url));
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const appUrl = process.env.APP_URL;
   if (!clientId || !appUrl) {

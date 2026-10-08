@@ -21,7 +21,7 @@ const ICONS = {
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; badge?: number };
 
-export function Nav({ items, user, signOut }: { items: NavItem[]; user: { name: string; email: string }; signOut: () => Promise<void> }) {
+export function Nav({ items, user, signOut }: { items: NavItem[]; user: { name: string; email: string }; signOut?: () => Promise<void> }) {
   const pathname = usePathname();
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
@@ -31,11 +31,13 @@ export function Nav({ items, user, signOut }: { items: NavItem[]; user: { name: 
         <Link href="/" className="flex items-center">
           <Image src="/tasis-crest.png" alt="TASIS One" width={235} height={175} priority className="h-12 w-auto md:h-16" />
         </Link>
-        <form action={signOut} className="absolute right-4 md:hidden">
-          <button className="btn px-2" title="Sign out">
-            <LogOut className="size-4" />
-          </button>
-        </form>
+        {signOut && (
+          <form action={signOut} className="absolute right-4 md:hidden">
+            <button className="btn px-2" title="Sign out">
+              <LogOut className="size-4" />
+            </button>
+          </form>
+        )}
       </div>
       <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-1 md:flex-col md:overflow-visible md:pb-0">
         {items.map((item) => {
@@ -61,11 +63,13 @@ export function Nav({ items, user, signOut }: { items: NavItem[]; user: { name: 
       <div className="hidden border-t border-line p-3 md:block">
         <div className="truncate px-1 text-sm font-medium">{user.name}</div>
         <div className="truncate px-1 text-xs text-dim">{user.email}</div>
-        <form action={signOut} className="mt-2">
-          <button className="btn w-full justify-start border-0 px-1 text-dim">
-            <LogOut className="size-4" /> Sign out
-          </button>
-        </form>
+        {signOut && (
+          <form action={signOut} className="mt-2">
+            <button className="btn w-full justify-start border-0 px-1 text-dim">
+              <LogOut className="size-4" /> Sign out
+            </button>
+          </form>
+        )}
       </div>
     </aside>
   );

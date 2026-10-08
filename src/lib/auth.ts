@@ -13,15 +13,15 @@ const hashToken = (token: string) => createHash("sha256").update(token).digest("
 
 export type CurrentUser = NonNullable<Awaited<ReturnType<typeof loadUser>>>;
 
+const withMemberships = { memberships: { include: { department: true } } } as const;
+
 async function loadUser() {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-  const session = await prisma.session.findUnique({
-    where: { id: hashToken(token) },
-    include: { user: { include: { memberships: { include: { department: true } } } } },
-  });
-  if (!session || session.expiresAt < new Date()) return null;
-  const { user } = session;
+  const session = token
+    ? await prisma.session.findUnique({ where: { id: hashToken(token) }, include: { user: { include: withMemberships } } })
+    : null;
+  const user = session && session.expiresAt >= new Date() ? session.user : signInRequired() ? null : await sharedUser();
+  if (!user) return null;
   return {
     ...user,
     isAdmin: user.role === "admin",
@@ -55,11 +55,22 @@ export function assert(condition: unknown, message = "You don't have permission 
 
 // --------------------------------------------------------------- sign-in
 
-/** GOOGLE_SIGNIN="off" turns Google off until OAuth and HTTPS are set up. */
-export const googleSignInEnabled = () => process.env.GOOGLE_SIGNIN !== "off";
+/**
+ * Sign-in is off until GOOGLE_SIGNIN="on" (that needs the Google OAuth client
+ * and HTTPS). Until then everyone uses the app as one shared admin account.
+ */
+export const signInRequired = () => process.env.GOOGLE_SIGNIN === "on";
 
-/** Signing in with just an email: always in development, and in production while Google is off. */
-export const emailSignInEnabled = () => process.env.NODE_ENV === "development" || !googleSignInEnabled();
+const SHARED_EMAIL = "staff@tasis.local";
+
+/** The account everyone uses while sign-in is off. */
+const sharedUser = () =>
+  prisma.user.upsert({
+    where: { email: SHARED_EMAIL },
+    update: {},
+    create: { email: SHARED_EMAIL, name: "TASIS staff", role: "admin" },
+    include: withMemberships,
+  });
 
 // --------------------------------------------------------------- sessions
 

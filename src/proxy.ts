@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 // Optimistic check only: sends visitors without a session cookie to /login.
 // The real session lookup happens in requireUser() on every page and action.
 export function proxy(request: NextRequest) {
+  // Sign-in is off: see signInRequired() in lib/auth.
+  if (process.env.GOOGLE_SIGNIN !== "on") return NextResponse.next();
   if (request.cookies.has("helpdesk_session")) return NextResponse.next();
   const url = new URL("/login", request.url);
   const path = request.nextUrl.pathname + request.nextUrl.search;

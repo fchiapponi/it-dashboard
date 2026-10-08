@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Nav, type NavItem } from "@/components/Nav";
-import { isAgent, isReception, requireUser, signOut } from "@/lib/auth";
+import { isAgent, isReception, requireUser, signInRequired, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 async function signOutAction() {
@@ -29,7 +29,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <div className="md:flex">
-      <Nav items={items} user={{ name: user.name, email: user.email }} signOut={signOutAction} />
+      <Nav items={items} user={{ name: user.name, email: user.email }} signOut={signInRequired() ? signOutAction : undefined} />
       <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">
         {/* Dashboards (data-wide) get more room than the usual forms and lists. */}
         <div className="mx-auto max-w-6xl has-[[data-wide]]:max-w-[1680px]">{children}</div>
