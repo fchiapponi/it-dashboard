@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { Printer, Wifi, AlertTriangle, TerminalSquare, Users, Pin } from "lucide-react";
+import { Printer, Wifi, AlertTriangle, TerminalSquare, Users } from "lucide-react";
 import { usePrinters, useAccessPoints, useTrello } from "@/lib/hooks";
 import { StatTile } from "@/components/ui/StatTile";
 import { TerminalPanel } from "@/components/ui/TerminalPanel";
@@ -59,16 +59,6 @@ function minTonerPercent(printer: { supplies: SupplyLike[] }): number {
   return levels.length ? Math.min(...levels) : Infinity;
 }
 
-// Printers always kept at the top of the panel, ahead of the urgency sort.
-const PINNED_PRINTERS = new Set([
-  "De Nobili Faculty",
-  "Hadsall Faculty",
-  "Monticello Faculty",
-  "Aurora",
-  "Focolare",
-  "Fiammetta",
-]);
-
 type FaultLike = { status: Status; alert: string | null; alertLevel: "error" | "warning" | null };
 
 // Fault reported by a reachable printer: "error" (jam, door open, …) or
@@ -80,10 +70,12 @@ function printerFault(printer: FaultLike): "error" | "warning" | null {
 
 const FAULT_RANK = { error: 0, warning: 1, none: 2 } as const;
 
-// Offline/error printers first, then pinned printers, then online ones
-// reporting a fault (errors before paper warnings), then the rest ordered by
-// their lowest remaining ink/toner level (most urgent first).
-function sortPrintersByUrgency<T extends FaultLike & { name: string; supplies: SupplyLike[] }>(
+// Offline/error printers first, then online ones reporting a fault (errors
+// before paper warnings), then ones low on ink/toner (lowest first), then the
+// rest by lifetime page count (busiest first).
+function sortPrintersByUrgency<
+  T extends FaultLike & { name: string; pageCount: number | null; supplies: SupplyLike[] },
+>(
   printers: T[] | undefined,
 ): T[] {
   if (!printers) return [];
@@ -91,13 +83,14 @@ function sortPrintersByUrgency<T extends FaultLike & { name: string; supplies: S
     const aOffline = a.status !== "online" ? 0 : 1;
     const bOffline = b.status !== "online" ? 0 : 1;
     if (aOffline !== bOffline) return aOffline - bOffline;
-    const aPinned = PINNED_PRINTERS.has(a.name) ? 0 : 1;
-    const bPinned = PINNED_PRINTERS.has(b.name) ? 0 : 1;
-    if (aPinned !== bPinned) return aPinned - bPinned;
     const aFault = FAULT_RANK[printerFault(a) ?? "none"];
     const bFault = FAULT_RANK[printerFault(b) ?? "none"];
     if (aFault !== bFault) return aFault - bFault;
-    return minTonerPercent(a) - minTonerPercent(b);
+    const aLow = minTonerPercent(a) < LOW_SUPPLY_THRESHOLD;
+    const bLow = minTonerPercent(b) < LOW_SUPPLY_THRESHOLD;
+    if (aLow !== bLow) return aLow ? -1 : 1;
+    if (aLow) return minTonerPercent(a) - minTonerPercent(b);
+    return (b.pageCount ?? -1) - (a.pageCount ?? -1);
   });
 }
 
@@ -192,12 +185,7 @@ export default function TvDashboardPage() {
     return (
       <div key={p.id} className="glass-chip rounded-[0.25rem] px-2 py-1.5" style={printerChipStyle(p)}>
         <div className="flex items-center justify-between gap-1.5">
-          <span className="flex min-w-0 items-center gap-1 truncate text-[0.6875rem] font-bold text-[var(--text-primary)]">
-            {PINNED_PRINTERS.has(p.name) && (
-              <Pin className="h-2.5 w-2.5 shrink-0 text-[var(--accent)]" />
-            )}
-            <span className="truncate">{p.name}</span>
-          </span>
+          <span className="truncate text-[0.6875rem] font-bold text-[var(--text-primary)]">{p.name}</span>
           {p.pageCount !== null && (
             <span
               title="Pages printed"
