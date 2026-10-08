@@ -50,3 +50,5 @@ next-env.d.ts
 
 # one-click launcher output
 /helpdesk.log
+/dashboard.log
+/updater.log

@@ -39,7 +39,7 @@ On the Windows server, double-click **`Start TASIS One.bat`**: it does all of th
 
 ### On the Windows server
 
-- **Install it with `git clone https://github.com/fchiapponi/tasis-dashboard.git`**, not by copying the folder. The launcher updates the app from GitHub, so it needs Git ([git-scm.com](https://git-scm.com/download/win)). The first `git pull` asks you to sign in to GitHub once; Windows then remembers the login.
+- **Install it with `git clone https://github.com/fchiapponi/it-dashboard.git`**, not by copying the folder. The launcher updates the app from GitHub, so it needs Git ([git-scm.com](https://git-scm.com/download/win)). The first `git pull` asks you to sign in to GitHub once; Windows then remembers the login.
 - The app is started by hand. It runs in a minimized window called **TASIS One server**. If you close that window or log off, the app stops.
 - **To update, double-click `Start TASIS One.bat`.** It stops the running app, runs `git pull`, installs new dependencies if `package.json` changed, applies new database migrations, rebuilds and starts the app again. If GitHub can't be reached, it says so and restarts the version already on the server.
 - Never edit files on the server: `git pull` would refuse to update. Make changes on your own computer and push them to GitHub. `.env`, `prisma/dev.db` and `helpdesk.log` aren't in Git, so updates never touch them.
