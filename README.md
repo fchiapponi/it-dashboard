@@ -1,134 +1,159 @@
-# TASIS Control Room Dashboard
+# TASIS One
 
-A single-page, TV-oriented dashboard for TASIS (The American School In Switzerland) IT staff: live status of network printers, IP cameras, and Wi-Fi access points, all on one screen, dark "terminal" theme, glass panels, scales automatically from a laptop browser up to a 4K TV.
+One web app for TASIS staff to:
 
-No login, no settings UI — everything is either polled directly from the devices or pulled from the Meraki cloud API, and printers/cameras are declared in a single source-of-truth code file.
+- **Tickets**: report problems to **IT**, **Facilities** or **Kitchen & Dining** (more departments can be added from Admin). Each ticket has a category, location, priority, assignee, a reply thread and internal notes that only agents can see.
+- **Inventory**:
+  - **Assets** with serial numbers. Each one has a QR label; scanning it opens the asset page with a *Report a problem* button.
+  - **Consumables**, with stock movements and low-stock warnings. Agents can book consumables used on a ticket directly from that ticket.
+- **Visitors**: staff pre-register the people they expect. Reception checks visitors in and out with a badge number, prints visitor badges and always has an "on site now" list.
+- **Deliveries**: reception logs incoming parcels and marks them as collected. Recipients see what's waiting for them on their dashboard.
+- **Events**: staff create events and say what IT, Facilities and Kitchen & Dining need to do. Each need becomes a ticket for that department, linked back to the event. The app warns when two events are booked in the same place at the same time.
+- **Dining**: a dashboard of the meals served each day in De Nobili, Hadsall and Focolare, read from the kitchen's Google Sheet and matched against the school calendar (classes, weekends, holidays, orientation, summer).
+- **Monitor**: the IT control-room screen at `/monitor`, made for a TV: printers (status, faults, ink/toner, page counts), Wi-Fi access points from Meraki and the IT Trello board. See [Monitor](#monitor-control-room-screen).
 
-## Stack
+Next.js 16, Prisma 6 + SQLite and Tailwind 4, running on the school's internal Windows server.
 
-- **Next.js 16** (App Router) + TypeScript + Tailwind CSS 4
-- **Prisma 6** + SQLite — stores printer/camera/server inventory and live status
-- **net-snmp** — queries printers over the standard Printer-MIB (RFC 3805) for toner/ink/paper levels
-- **onvif** — probes IP cameras over ONVIF to confirm they're reachable
-- **Cisco Meraki Dashboard API** — pulls live access point status directly from the cloud (no local polling needed)
-- **node-cron** — runs the background printer/camera polling loop (`src/instrumentation.ts`)
+## Who can do what
 
-## Prerequisites
+| Role | How you get it | Can |
+|---|---|---|
+| Everyone | Sign in with a school Google account | Open and follow their own tickets, pre-register visitors, see their deliveries, create events |
+| Agent | Admin ticks one or more departments for you | Work that department's ticket queue, manage its assets and supplies |
+| Reception | Member of the **Reception** department | Check visitors in and out, log and hand out deliveries |
+| Admin | `ADMIN_EMAILS` in `.env`, or ticked in Admin | Everything, plus people/roles, departments, categories and locations |
 
-- Node.js 20+ and npm
-- Network access to the printer and camera subnets (see **Network requirements** below)
-- A Cisco Meraki Dashboard API key, if you want access points (optional — the dashboard works fine without it, that column just stays empty)
-
-## Setup — one click
-
-On a Mac that already has this repo cloned and a working `.env` in the project folder, double-click **`Start Dashboard.command`**. First run installs Node (via Homebrew) and dependencies, builds, and starts the dashboard in the background, then opens it in your browser — this can take a few minutes the first time. Double-clicking it again just reopens the browser if it's already running. Logs go to `dashboard.log` next to it.
-
-If there's no `.env` yet, the script stops and tells you — copy a working one into the project folder (it holds secrets, so it's never in git) and double-click again.
-
-## Setup — manual
+## Setup
 
 ```bash
-git clone git@github.com:fchiapponi/tasis-dashboard.git
-cd tasis-dashboard
 npm install
-
-cp .env.example .env
-# edit .env — see the table below
-
+cp .env.example .env          # then fill it in — see below
 npx prisma generate
-npx prisma migrate deploy   # creates prisma/dev.db and applies the schema
-
+npx prisma migrate deploy     # creates prisma/dev.db
+npm run db:seed               # IT / Facilities / Kitchen & Dining / Reception, categories, a few buildings
 npm run build
-npm run start               # production server, defaults to http://localhost:3000
+npm run start                 # http://localhost:3060
 ```
 
-For day-to-day development (hot reload) use `npm run dev` instead of `build`+`start`. `PORT=3050 npm run start` picks a specific port if 3000 is already taken by something else on the machine.
+On the Windows server, double-click **`Start TASIS One.bat`**: it does all of the above and opens the app. On a Mac, use **`Start TASIS One.command`** instead.
 
-## Environment variables (`.env`)
+### On the Windows server
+
+- **Install it with `git clone https://github.com/fchiapponi/tasis-dashboard.git`**, not by copying the folder. The launcher updates the app from GitHub, so it needs Git ([git-scm.com](https://git-scm.com/download/win)). The first `git pull` asks you to sign in to GitHub once; Windows then remembers the login.
+- The app is started by hand. It runs in a minimized window called **TASIS One server**. If you close that window or log off, the app stops.
+- **To update, double-click `Start TASIS One.bat`.** It stops the running app, runs `git pull`, installs new dependencies if `package.json` changed, applies new database migrations, rebuilds and starts the app again. If GitHub can't be reached, it says so and restarts the version already on the server.
+- Never edit files on the server: `git pull` would refuse to update. Make changes on your own computer and push them to GitHub. `.env`, `prisma/dev.db` and `helpdesk.log` aren't in Git, so updates never touch them.
+- Run `npm install` on the server itself. A `node_modules` folder copied from a Mac doesn't work on Windows: delete it and the launcher reinstalls it.
+- Keep the folder, and so `prisma/dev.db`, on a local disk of the server, never on a network share. SQLite can corrupt its file on network shares. If possible, exclude the folder from the antivirus' real-time scanning.
+- In `.env`, write Windows paths with forward slashes, e.g. `GOOGLE_SERVICE_ACCOUNT_FILE="C:/helpdesk-secrets/service-account.json"`.
+- The server needs outbound HTTPS to `*.googleapis.com`, to `api.meraki.com` and `api.trello.com` for the Monitor, and to `api.anthropic.com` if tickets by email are on. If the school goes out through a proxy, add `HTTPS_PROXY="http://proxy:port"` and `NODE_USE_ENV_PROXY=1` to `.env`.
+- Run only one copy of the app at a time. The mailbox check runs inside the app, so two copies would handle each email twice.
+
+To work on the app, run `npm run dev`. In development the login page also shows a **development sign-in** form, so you can sign in as any email without Google. That form is never available in production builds.
+
+## Environment variables
 
 | Variable | Meaning |
 |---|---|
-| `DATABASE_URL` | SQLite connection string. **Must be `file:./dev.db...`, not `file:./prisma/dev.db...`** — Prisma resolves this path relative to `prisma/schema.prisma`'s own directory, so the extra `prisma/` prefix would create a stray nested `prisma/prisma/dev.db`. The `?connection_limit=1&socket_timeout=20` part serializes SQLite access so polling dozens of devices concurrently doesn't hit "database is locked" errors. |
-| `CREDENTIALS_ENCRYPTION_KEY` | Random key used to encrypt SNMP community strings and camera passwords at rest in the database. Generate one with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` and never change it once devices exist (it won't be able to decrypt old rows). |
-| `PRINTER_POLL_INTERVAL_MS` | How often the background job re-queries every printer over SNMP (default 300000 = 5 min). |
-| `CAMERA_POLL_INTERVAL_MS` | How often it re-probes every camera over ONVIF (default 60000 = 1 min). |
-| `MERAKI_API_KEY` | Cisco Meraki Dashboard API key (Dashboard → your profile icon → *My profile* → *API access* → generate). Leave empty to skip access points entirely. |
-| `MERAKI_ORG_ID` | The Meraki organization ID that owns the access points. Find it by calling `https://api.meraki.com/api/v1/organizations` with the API key, or from the dashboard URL. |
+| `DATABASE_URL` | SQLite path. Keep it as `file:./dev.db?...`: the path is resolved relative to `prisma/`. |
+| `APP_URL` | The URL people open the app at, without a trailing slash. It is used for the Google redirect and for the links inside QR labels, so **set it before printing labels**. |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Credentials for an OAuth client of type *Web application* in Google Cloud Console. |
+| `GOOGLE_WORKSPACE_DOMAIN` | Only accounts from this domain can sign in, e.g. `tasis.ch`. |
+| `ADMIN_EMAILS` | Comma-separated emails that become admins when they sign in. |
 
-## Adding or removing printers and cameras
+### Google sign-in
 
-There is no settings page. Edit **`src/config/devices.ts`**:
+1. In Google Cloud Console, create a project, then go to **APIs & Services → OAuth consent screen**. Choose **Internal**, so that only Workspace users can sign in.
+2. Go to **Credentials → Create credentials → OAuth client ID → Web application**.
+3. Under **Authorized redirect URIs**, add `<APP_URL>/api/auth/callback`.
 
-```ts
-export const PRINTERS: PrinterConfig[] = [
-  { name: "Art Center", ipAddress: "172.25.200.2" },
-  { name: "Aurora", ipAddress: "172.25.200.4", snmpCommunity: "public", snmpVersion: 2 },
-];
+**Important:** Google accepts only `http://localhost` or **HTTPS on a real domain name** as a redirect URI. A LAN address like `http://172.25.x.x:3060` is rejected. To make the app usable from other machines, put it behind a hostname such as `helpdesk.tasis.ch`, served over HTTPS.
 
-export const CAMERAS: CameraConfig[] = [
-  { name: "Front Gate", protocol: "onvif", host: "172.30.1.25" },
-];
-```
+The app is meant for the **school's internal network only**. Don't publish it to the Internet: no port forwarding, no Cloudflare Tunnel. It still works only on the inside, because:
+- **Internal DNS:** `helpdesk.tasis.ch` exists only on the school DNS and points at the Windows server. Google never connects to that address: it only checks that the redirect URI matches, and the browser does the redirect. So the name doesn't have to be reachable from outside.
+- **HTTPS:** IIS (with URL Rewrite and ARR) or Caddy on the server forwards `https://helpdesk.tasis.ch` to `http://localhost:3060`. On the Windows firewall, open only port 443 to the school network, and keep 3060 closed.
+- **Certificate:** since the site isn't reachable from outside, a normal Let's Encrypt check over HTTP can't work. Use the school's internal certificate authority, if school computers already trust it, or an existing `tasis.ch` certificate, or Let's Encrypt with the DNS check.
+- **Outbound access:** the server still has to reach Google, for sign-in and the ticket@ mailbox, and the Claude API. That traffic is outgoing only, and nothing from outside can come in.
 
-On every startup (`npm run dev` / `npm run start`), `src/lib/device-sync.ts` reconciles the database against this file: printers/cameras whose IP is no longer listed are deleted, new ones are created, and existing ones have their name/settings updated. **Restart the server after editing this file** for changes to take effect. `snmpCommunity` defaults to `"public"` and `snmpVersion` to `2` if omitted.
+Set `APP_URL="https://helpdesk.tasis.ch"` in `.env`. Links in confirmation emails and on QR labels use it, so they open only from the school network.
 
-Access points need no configuration here at all — every wireless device (`productType: "wireless"`) visible to the Meraki API key shows up automatically.
+## Tickets by email
 
-## Network requirements
+Staff can also open a ticket by writing to **ticket@tasis.ch**:
 
-Printers and cameras live on the school's internal LAN and are (rightly) not reachable from the public internet. **The machine running this app must be on the same network as them**, or reachable to it via VPN/tunnel — hosting it on a public cloud platform (Vercel, etc.) will not work for the printers/cameras column unless you also set up a tunnel (Tailscale, WireGuard, Cloudflare Tunnel...) back into that LAN.
+1. The app checks the mailbox every minute.
+2. Claude reads each new email and files it. It writes a short title and picks the department, category, location and priority. The email text is kept unchanged as the ticket description.
+3. The sender gets a reply in the same email thread. It shows the ticket number, where the ticket was filed and a link to it.
+4. When someone answers in that thread, the answer is added to the ticket as a comment. Quoted history is removed. Only the requester and the department's agents can add comments this way. If the requester answers a *Resolved* or *Waiting* ticket, it moves back to *Open*.
 
-Access points are the exception: since they're fetched from Meraki's cloud API rather than polled directly, that column works from anywhere with internet access.
+Only addresses from `GOOGLE_WORKSPACE_DOMAIN` can open tickets. Emails from anyone else, out-of-office replies, bounces and mailing lists are ignored and get no reply. If Claude can't be reached, the email still becomes a ticket: it goes to `EMAIL_TICKETS_DEFAULT_DEPARTMENT`, and the ticket history tells agents to check how it was filed. Attachments aren't imported yet; the ticket notes how many there were.
 
-## Running it permanently — autonomous mode
+Gmail tags every email it has handled with the label `helpdesk-processed`. You can still read the mailbox normally.
 
-`npm run start` only stays up as long as its terminal/session does, and code changes need someone to manually pull, rebuild and restart. For the Mac driving the TV, `mac/` has a self-contained `launchd` setup that removes both of those:
+### Setup
 
-```bash
-./mac/install.sh
-```
+1. Create the `ticket@tasis.ch` mailbox, as a user or a group with its own inbox.
+2. In Google Cloud Console, in the same project as the sign-in client, enable the **Gmail API**. Then create a **service account** and a JSON key for it. Save the key on the server **outside** this folder, and put its path in `GOOGLE_SERVICE_ACCOUNT_FILE`.
+3. In the Google Admin console, go to **Security → Access and data control → API controls → Domain-wide delegation**. Add the service account's client ID with the scope `https://www.googleapis.com/auth/gmail.modify`.
+4. Set `TICKET_MAILBOX=ticket@tasis.ch` and `ANTHROPIC_API_KEY` in `.env`, then restart the app. The log should show `[email-tickets] watching ticket@tasis.ch`.
 
-This installs two `launchd` LaunchAgents (run once, safe to re-run after moving the repo):
+| Variable | Meaning |
+|---|---|
+| `TICKET_MAILBOX` | The mailbox to watch. Leave it empty to turn the feature off. |
+| `TICKET_MAILBOX_NAME` | Sender name on the confirmation emails. |
+| `GOOGLE_SERVICE_ACCOUNT_FILE` | Path to the service account JSON key. |
+| `EMAIL_POLL_SECONDS` | How often to check the mailbox (default 60). |
+| `EMAIL_TICKETS_DEFAULT_DEPARTMENT` | Department slug for emails the AI couldn't sort (default `it`). |
+| `ANTHROPIC_API_KEY` | Claude API key used to sort emails. |
 
-- **`com.tasis.dashboard`** — runs `npm run start`, starts at login, restarts automatically if it crashes.
-- **`com.tasis.dashboard-updater`** — every 5 minutes, checks `origin/main` for new commits; if there are any, pulls, runs `npm install` / `prisma generate` / `prisma migrate deploy` / `npm run build`, then restarts the service above.
+## Dining dashboard
 
-So you keep developing and pushing from your own machine as usual — the TV Mac picks up the change on its own within a few minutes, no one needs to touch it. Logs land in `dashboard.log` and `updater.log` next to the repo. To remove it: `launchctl bootout gui/$(id -u)/com.tasis.dashboard gui/$(id -u)/com.tasis.dashboard-updater`.
+The **Dining** page reads the kitchen's Google Sheet of daily meal counts: one tab per month, one row per day, with breakfast, lunch and dinner for each dining hall. Words typed in a meal cell instead of a number (BRUNCH, BBQ, ...) and the notes in column K show up as kitchen notes.
 
-`Start Dashboard.command` still works as a manual fallback (e.g. first-time setup, or a machine not running the LaunchAgents) — it just opens the browser tab if the dashboard is already up.
+1. Share the sheet as **Anyone with the link can view**. The app downloads it without signing in to Google.
+2. Put its ID in `DINING_SHEET_ID` (the part of the link between `/d/` and `/edit`) and restart the app.
 
-## Project structure
+The app re-reads the sheet every `DINING_REFRESH_HOURS` (default 6), and **Refresh now** on the page re-reads it straight away. Open pages pick up the latest read every 5 minutes. If Google can't be reached, the page says so and keeps showing the last good read.
 
-```
-src/
-  app/
-    page.tsx                the entire dashboard (single page, no routing)
-    api/                     REST endpoints backing the dashboard
-      printers/              GET (list + supply levels)
-      cameras/                GET (list)
-      servers/                GET (list)
-      access-points/          GET (proxies the Meraki API, 20s cache)
-  components/
-    layout/                  Clock, Countdowns (17:00 / Friday 17:00 timers)
-    ui/                      TerminalPanel, StatTile, StatusBadge
-  config/devices.ts          <- single source of truth for printers & cameras
-  lib/
-    snmp-printer.ts           SNMP walk + Printer-MIB parsing
-    onvif-camera.ts           ONVIF probing
-    meraki.ts                 Meraki Dashboard API client
-    printer-service.ts /
-    camera-service.ts         polling orchestration + DB writes
-    device-sync.ts             reconciles the DB against config/devices.ts
-    crypto.ts                  encrypts SNMP/camera credentials at rest
-  instrumentation.ts          starts the cron polling loop on boot
-prisma/schema.prisma          Printer, Camera, PrinterSupply, Server
-```
+The school calendar the figures are matched against lives in `src/lib/schoolCalendar.ts`, copied from the academic calendar PDFs on the Parent Portal. It covers January 2026 to June 2027: add the next school year there when it is published.
 
-## Currently disabled
+| Variable | Meaning |
+|---|---|
+| `DINING_SHEET_ID` | ID of the kitchen's meal-count sheet. Leave it empty to turn the page's data off. |
+| `DINING_REFRESH_HOURS` | How often the sheet is re-read in the background (default 6). |
 
-- **Camera video**: cameras show reachability status only, not a live snapshot/stream — deliberate, to keep the dashboard lightweight and fast at high device counts.
+## Monitor (control-room screen)
 
-## Known quirks
+`/monitor` is a full-screen page without the app's menu, with a dark theme that scales from a laptop up to a 4K TV. Agents find it as **Monitor** in the menu. Like every other page it needs a sign-in: on the TV's browser, sign in once with a school account and the session lasts 30 days.
 
-- Some printer models misreport their ink/toner cartridges under the Printer-MIB "waste" type code instead of "ink"/"toner" — `src/lib/snmp-printer.ts` corrects this by trusting the free-text supply description over the numeric type when they disagree.
-- A few printers expose two distinct SNMP rows under the exact same commercial supply name (e.g. two "Black Ink Cartridge" entries); these are automatically suffixed `(1)`, `(2)` so neither reading is silently dropped.
+- **Printers** are the inventory's printers: every item whose type is a printer (Printer, Copier, MFP, ...), isn't retired and has an **IP address** field, in any department. To add or remove one from the screen, add or edit it in *Inventory*. `npm run db:seed` adds the school's network printers to IT the first time, when there are no printers yet. The app reads every printer over SNMP every `PRINTER_REFRESH_MINUTES` (default 2): online or not, faults (paper jam, door open, out of paper, ...), ink/toner levels and page count. The same reading fills the *Printer status* box on the item's page and the Ink / Page count columns.
+- **Access points** come from the Meraki cloud API (every wireless device the API key can see). No configuration besides `MERAKI_API_KEY` and `MERAKI_ORG_ID`; without them that tile stays empty.
+- **Trello**: the lists of the board in `TRELLO_BOARD_ID`, leaving out a list called "Done".
+- **Cameras and servers** are listed in `src/config/devices.ts`. On every start the database is synced with that file (new ones added, removed ones deleted), then they are checked every minute (ONVIF for cameras, common TCP ports for servers). They are available at `/api/cameras` and `/api/servers` but not shown on the screen yet.
+
+The printers, cameras and servers are on the school LAN, so the app has to run on a machine inside it (the Windows server is).
+
+| Variable | Meaning |
+|---|---|
+| `PRINTER_REFRESH_MINUTES` | How often every printer is re-read (default 2). |
+| `CAMERA_POLL_INTERVAL_MS` / `SERVER_POLL_INTERVAL_MS` | How often cameras and servers are checked, in milliseconds (default and minimum 60000). |
+| `CREDENTIALS_ENCRYPTION_KEY` | Encrypts camera passwords in the database. Only needed when a camera in `devices.ts` has a password. Generate one with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` and never change it afterwards. |
+| `MERAKI_API_KEY` / `MERAKI_ORG_ID` | Meraki Dashboard API key (*My profile → API access*) and the organization that owns the access points. |
+| `TRELLO_API_KEY` / `TRELLO_TOKEN` / `TRELLO_BOARD_ID` | Key from trello.com/power-ups/admin, the token generated from the *Token* link on that page, and the board ID from the board's URL. |
+
+Known quirks:
+
+- Some printers report their real ink/toner cartridges with the Printer-MIB "waste" type code. The supply's description wins when it clearly names the supply (`kindFromDescription` in `src/lib/printerSnmp.ts`).
+- Printers checked every few minutes don't change an item's *Last changed* date; only a different model or serial number, or pressing *Read now*, does.
+
+## Day-to-day
+
+- **New staff become agents:** they sign in once (or an admin adds them under *Admin → People*), then an admin ticks their departments.
+- **Labels:** in *Inventory*, tick the assets you want and press *Print labels for selected*. The sheet fits 3 labels per row on A4.
+- **Locations** are a starting list of buildings. Edit them in *Admin → Locations*, and add rooms as needed.
+
+## Not built yet
+
+- Email notifications when an agent replies in the app, and for parcels that have arrived. The Gmail client used for tickets by email can send these.
+- File attachments (photos) on tickets.
+- A reception kiosk mode where visitors sign themselves in on a tablet.

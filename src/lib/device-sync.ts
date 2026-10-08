@@ -1,35 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { encryptSecret } from "@/lib/crypto";
-import { PRINTERS, CAMERAS, SERVERS } from "@/config/devices";
+import { CAMERAS, SERVERS } from "@/config/devices";
 
 // Makes src/config/devices.ts the single source of truth: on every startup,
 // the database is reconciled to match it exactly (create/update/delete),
-// instead of devices being managed through a settings UI.
+// instead of devices being managed through a settings UI. Printers are not
+// here: they are items in the inventory (see lib/printers.ts).
 export async function syncDevicesFromConfig() {
-  for (const p of PRINTERS) {
-    await prisma.printer.upsert({
-      where: { ipAddress: p.ipAddress },
-      create: {
-        name: p.name,
-        ipAddress: p.ipAddress,
-        location: p.location,
-        snmpCommunity: encryptSecret(p.snmpCommunity ?? "public"),
-        snmpVersion: p.snmpVersion ?? 2,
-        model: p.model,
-      },
-      update: {
-        name: p.name,
-        location: p.location ?? null,
-        snmpCommunity: encryptSecret(p.snmpCommunity ?? "public"),
-        snmpVersion: p.snmpVersion ?? 2,
-        model: p.model ?? null,
-      },
-    });
-  }
-  await prisma.printer.deleteMany({
-    where: { ipAddress: { notIn: PRINTERS.map((p) => p.ipAddress) } },
-  });
-
   for (const c of CAMERAS) {
     const port = c.port ?? 80;
     await prisma.camera.upsert({

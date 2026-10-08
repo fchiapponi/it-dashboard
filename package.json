@@ -3,34 +3,39 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3060",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "next start -p 3060",
+    "lint": "eslint",
+    "db:seed": "node prisma/seed.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@prisma/client": "^6.19.3",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.42.0",
-    "net-snmp": "^3.26.3",
-    "next": "16.3.4",
-    "node-cron": "^4.6.0",
+    "lucide-react": "^1.52.0",
+    "net-snmp": "^3.29.1",
+    "next": "^16.3.4",
     "onvif": "^0.8.3",
     "prisma": "^6.19.3",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "qrcode": "^1.5.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "server-only": "^0.0.1",
     "swr": "^2.5.1",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.7.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/net-snmp": "^3.23.0",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.3.4",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "@types/node": "^20.19.43",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.4",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3"
   }
 }

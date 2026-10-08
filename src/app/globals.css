@@ -1,171 +1,138 @@
 @import "tailwindcss";
 
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
 :root {
-  --bg: #06090c;
-  --bg-panel: #0a1218;
-  --bg-panel-raised: #0e1a20;
-  --border: #1a3550;
-  --border-bright: #245a7a;
-  --grid-line: rgba(56, 189, 248, 0.045);
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --panel-muted: #f1f3f6;
+  --border: #e3e6eb;
+  --text: #16191f;
+  --text-dim: #5d6573;
+  --accent: #1d4ed8;
+  --accent-fg: #ffffff;
+  --danger: #b91c1c;
+  /* Dining charts: one color per dining hall, one per school-calendar day kind */
+  --hall-1: #2a78d6;
+  --hall-2: #eb6834;
+  --hall-3: #1baf7a;
+  --dining-event: #8a5a00;
+  --cal-classes: #a9b1bd;
+  --cal-weekend: #d9dde3;
+  --cal-special: #7b67c4;
+  --cal-orientation: #d8b400;
+  --cal-holiday: #cf5a52;
+  --cal-summer: #c79a5a;
+  --meal-1: #ec8fba;
+  --meal-2: #d0477f;
+  --meal-3: #93204f;
+}
 
-  --text-primary: #dbf1ff;
-  --text-dim: #5f80a0;
-  --text-faint: #34506b;
-
-  --accent: #38bdf8;
-  --accent-dim: #0369a1;
-  --accent-glow: rgba(56, 189, 248, 0.35);
-
-  --cyan: #22e8e0;
-  --cyan-glow: rgba(34, 232, 224, 0.35);
-
-  --amber: #ffb020;
-  --amber-glow: rgba(255, 176, 32, 0.35);
-
-  --red: #ff3b5c;
-  --red-glow: rgba(255, 59, 92, 0.4);
-
-  --gray: #64748b;
-  --gray-glow: rgba(100, 116, 139, 0.35);
-
-  --radius: 3px;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1015;
+    --panel: #151a21;
+    --panel-muted: #1b2129;
+    --border: #262e39;
+    --text: #e6e9ee;
+    --text-dim: #8f98a6;
+    --accent: #4f7cff;
+    --accent-fg: #ffffff;
+    --danger: #f87171;
+    --hall-1: #3987e5;
+    --hall-2: #d95926;
+    --hall-3: #199e70;
+    --dining-event: #e0b04a;
+    --cal-classes: #5d6673;
+    --cal-weekend: #2f3640;
+    --cal-special: #9385e0;
+    --cal-orientation: #c9a800;
+    --cal-holiday: #d9605a;
+    --cal-summer: #b08850;
+    --meal-1: #e88bb6;
+    --meal-2: #cc4a85;
+    --meal-3: #8f2a58;
+  }
 }
 
 @theme inline {
-  --color-background: var(--bg);
-  --color-foreground: var(--text-primary);
-  --font-mono: var(--font-jetbrains-mono);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html {
-  color-scheme: dark;
-  /* Scales the whole UI (every rem-based size) with screen width so the
-     dashboard stays readable on a big TV instead of shrinking with density.
-     0.833vw = 16px at a 1920px-wide screen, 32px at 3840px (4K). */
-  font-size: clamp(16px, 0.833vw, 40px);
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-muted: var(--panel-muted);
+  --color-line: var(--border);
+  --color-fg: var(--text);
+  --color-dim: var(--text-dim);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-inter);
 }
 
 body {
   background: var(--bg);
-  color: var(--text-primary);
-  font-family: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
-  min-height: 100dvh;
-  position: relative;
-  user-select: none;
-  -webkit-user-select: none;
-  cursor: default;
+  color: var(--text);
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 36px 36px;
+/* A horizontal scroll bar that stays visible, also on Macs set to hide scroll bars.
+   Styling the webkit bar turns macOS overlay bars into permanent ones. */
+.scroll-x-visible::-webkit-scrollbar {
+  height: 8px;
+}
+.scroll-x-visible::-webkit-scrollbar-track {
+  background: var(--panel-muted);
+  border-radius: 4px;
+}
+.scroll-x-visible::-webkit-scrollbar-thumb {
+  background: var(--text-dim);
+  border-radius: 4px;
+}
+@supports not selector(::-webkit-scrollbar) {
+  .scroll-x-visible {
+    scrollbar-color: var(--text-dim) var(--panel-muted);
+  }
 }
 
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0px,
-    rgba(0, 0, 0, 0) 2px,
-    rgba(0, 0, 0, 0.12) 3px
-  );
-  opacity: 0.35;
-  mix-blend-mode: multiply;
+@layer components {
+  .card {
+    @apply rounded-xl border border-line bg-panel;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-panel px-3 py-1.5 text-sm font-medium text-fg transition hover:bg-panel-muted disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply border-transparent bg-accent text-accent-fg hover:bg-accent hover:brightness-110;
+  }
+  .btn-danger {
+    @apply text-danger;
+  }
+  .input {
+    @apply w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm text-fg outline-none placeholder:text-dim focus:border-accent focus:ring-2 focus:ring-accent/20;
+  }
+  .label {
+    @apply mb-1 block text-xs font-medium text-dim;
+  }
+  .table {
+    @apply w-full text-left text-sm;
+  }
+  .table th {
+    @apply border-b border-line px-4 py-2 text-xs font-medium tracking-wide text-dim uppercase;
+  }
+  .table td {
+    @apply border-b border-line px-4 py-2.5 align-middle;
+  }
+  .table tr:last-child td {
+    @apply border-b-0;
+  }
+  .link {
+    @apply text-accent hover:underline;
+  }
 }
 
-::selection {
-  background: var(--accent);
-  color: #04140a;
-}
-
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-track {
-  background: var(--bg-panel);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border-bright);
-  border-radius: var(--radius);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-dim);
-}
-
-.glow-text {
-  text-shadow: 0 0 8px var(--accent-glow);
-}
-
-.crt-flicker {
-  animation: flicker 6s infinite;
-}
-
-@keyframes flicker {
-  0%, 96%, 100% { opacity: 1; }
-  97% { opacity: 0.94; }
-  98% { opacity: 1; }
-  99% { opacity: 0.97; }
-}
-
-@keyframes blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
-}
-
-.cursor-blink::after {
-  content: "\2588";
-  margin-left: 2px;
-  animation: blink 1s step-start infinite;
-  color: var(--accent);
-}
-
-@keyframes pulse-dot {
-  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
-  70% { box-shadow: 0 0 0 6px transparent; opacity: 0.7; }
-}
-
-.status-dot {
-  animation: pulse-dot 2s ease-out infinite;
-}
-
-.glass-panel {
-  background: linear-gradient(165deg, rgba(17, 30, 42, 0.55), rgba(7, 12, 17, 0.35));
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
-  border: 1px solid rgba(56, 189, 248, 0.16);
-  box-shadow:
-    inset 0 1px 0 rgba(219, 241, 255, 0.06),
-    0 8px 32px -14px rgba(0, 0, 0, 0.75);
-}
-
-.glass-chip {
-  background: linear-gradient(165deg, rgba(19, 34, 46, 0.5), rgba(7, 12, 17, 0.3));
-  backdrop-filter: blur(10px) saturate(140%);
-  -webkit-backdrop-filter: blur(10px) saturate(140%);
-  border: 1px solid rgba(56, 189, 248, 0.12);
-  box-shadow: inset 0 1px 0 rgba(219, 241, 255, 0.05);
-}
-
-.no-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
 }

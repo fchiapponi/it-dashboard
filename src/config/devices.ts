@@ -1,12 +1,3 @@
-export interface PrinterConfig {
-  name: string;
-  ipAddress: string;
-  location?: string;
-  snmpCommunity?: string;
-  snmpVersion?: 1 | 2;
-  model?: string;
-}
-
 export interface ServerConfig {
   name: string;
   ipAddress: string;
@@ -29,54 +20,11 @@ export interface CameraConfig {
   password?: string;
 }
 
-// Single source of truth for monitored devices: edit this file and restart
+// Single source of truth for monitored cameras and servers (printers are
+// managed in the inventory instead): edit this file and restart
 // the app (or wait for the next redeploy) to add/remove one. No management
 // UI — the database is synced against this file on startup (see
 // src/lib/device-sync.ts).
-
-export const PRINTERS: PrinterConfig[] = [
-  { name: "Art Center", ipAddress: "172.25.200.2" },
-  { name: "De Nobili Registrar", ipAddress: "172.25.200.3" },
-  { name: "Aurora", ipAddress: "172.25.200.4" },
-  { name: "Monticello PT", ipAddress: "172.25.200.5", snmpVersion: 1 },
-  { name: "MacDermid", ipAddress: "172.25.200.6", snmpVersion: 1 },
-  { name: "Gatto P2", ipAddress: "172.25.200.9", snmpVersion: 1 },
-  { name: "De Nobili Dorm", ipAddress: "172.25.200.11" },
-  { name: "172.25.200.12", ipAddress: "172.25.200.12" },
-  { name: "Photolab", ipAddress: "172.25.200.30" },
-  { name: "Censi", ipAddress: "172.25.200.33" },
-  { name: "172.25.200.35", ipAddress: "172.25.200.35" },
-  { name: "172.25.200.38", ipAddress: "172.25.200.38" },
-  { name: "Coach House", ipAddress: "172.25.200.40" },
-  { name: "172.25.200.41", ipAddress: "172.25.200.41" },
-  { name: "172.25.200.55", ipAddress: "172.25.200.55" },
-  { name: "Boglia 1", ipAddress: "172.25.200.57" },
-  { name: "Focolare", ipAddress: "172.25.200.61" },
-  { name: "Sport Office", ipAddress: "172.25.200.70" },
-  { name: "De Nobili Faculty", ipAddress: "172.25.200.73" },
-  { name: "172.25.200.75", ipAddress: "172.25.200.75" },
-  { name: "Security", ipAddress: "172.25.200.93" },
-  { name: "Lanterna", ipAddress: "172.25.200.99" },
-  { name: "Gatto PT", ipAddress: "172.25.200.100" },
-  { name: "De Nobili LRC", ipAddress: "172.25.200.105" },
-  { name: "172.25.200.106", ipAddress: "172.25.200.106" },
-  { name: "Kitchen", ipAddress: "172.25.200.109" },
-  { name: "HR", ipAddress: "172.25.200.120" },
-  { name: "Business Office", ipAddress: "172.25.200.125" },
-  { name: "Fiammetta", ipAddress: "172.25.200.129" },
-  { name: "Music 1", ipAddress: "172.25.200.130" },
-  { name: "Del Sole", ipAddress: "172.25.200.141" },
-  { name: "Hadsall Faculty", ipAddress: "172.25.200.192" },
-  { name: "Science", ipAddress: "172.25.200.194" },
-  { name: "Monticello Faculty", ipAddress: "172.25.200.205" },
-  { name: "Palmer", ipAddress: "172.25.200.206" },
-  { name: "Monticello Dorm", ipAddress: "172.25.200.207" },
-  { name: "Reception", ipAddress: "172.25.200.210" },
-  { name: "172.25.200.211", ipAddress: "172.25.200.211" },
-  { name: "172.25.200.231", ipAddress: "172.25.200.231" },
-  { name: "Library", ipAddress: "172.25.200.250" },
-  { name: "Giani", ipAddress: "172.25.200.253" },
-];
 
 export const CAMERAS: CameraConfig[] = [
   { name: "172.30.1.25", protocol: "onvif", host: "172.30.1.25" },
