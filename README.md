@@ -49,7 +49,7 @@ On the Windows server, double-click **`Start TASIS One.bat`**: it does all of th
 - The server needs outbound HTTPS to `*.googleapis.com`, to `api.meraki.com` and `api.trello.com` for the Monitor, and to `api.anthropic.com` if tickets by email are on. If the school goes out through a proxy, add `HTTPS_PROXY="http://proxy:port"` and `NODE_USE_ENV_PROXY=1` to `.env`.
 - Run only one copy of the app at a time. The mailbox check runs inside the app, so two copies would handle each email twice.
 
-To work on the app, run `npm run dev`. In development the login page also shows a **development sign-in** form, so you can sign in as any email without Google. That form is never available in production builds.
+To work on the app, run `npm run dev`. In development the login page also shows a **development sign-in** form, so you can sign in as any email without Google. In production builds it appears only while `GOOGLE_SIGNIN="off"`.
 
 ## Environment variables
 
@@ -58,10 +58,13 @@ To work on the app, run `npm run dev`. In development the login page also shows 
 | `DATABASE_URL` | SQLite path. Keep it as `file:./dev.db?...`: the path is resolved relative to `prisma/`. |
 | `APP_URL` | The URL people open the app at, without a trailing slash. It is used for the Google redirect and for the links inside QR labels, so **set it before printing labels**. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Credentials for an OAuth client of type *Web application* in Google Cloud Console. |
+| `GOOGLE_SIGNIN` | `"off"` replaces Google sign-in with a form where people type their school email, without a password. Anyone on the network could sign in as anyone, admins included, so use it only until Google sign-in works. |
 | `GOOGLE_WORKSPACE_DOMAIN` | Only accounts from this domain can sign in, e.g. `tasis.ch`. |
 | `ADMIN_EMAILS` | Comma-separated emails that become admins when they sign in. |
 
 ### Google sign-in
+
+Until this is set up, put `GOOGLE_SIGNIN="off"` in `.env`, and `APP_URL` to the plain `http://` address people open.
 
 1. In Google Cloud Console, create a project, then go to **APIs & Services → OAuth consent screen**. Choose **Internal**, so that only Workspace users can sign in.
 2. Go to **Credentials → Create credentials → OAuth client ID → Web application**.

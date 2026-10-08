@@ -53,6 +53,14 @@ export function assert(condition: unknown, message = "You don't have permission 
   if (!condition) throw new Error(message);
 }
 
+// --------------------------------------------------------------- sign-in
+
+/** GOOGLE_SIGNIN="off" turns Google off until OAuth and HTTPS are set up. */
+export const googleSignInEnabled = () => process.env.GOOGLE_SIGNIN !== "off";
+
+/** Signing in with just an email: always in development, and in production while Google is off. */
+export const emailSignInEnabled = () => process.env.NODE_ENV === "development" || !googleSignInEnabled();
+
 // --------------------------------------------------------------- sessions
 
 /** Creates or updates the user from a verified Google profile and starts a session. */
