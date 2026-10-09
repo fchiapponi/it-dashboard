@@ -40,6 +40,12 @@ export async function createTicket(form: FormData) {
   redirect(`/tickets/${ticket.number}`);
 }
 
+/** The ticket's own page and the list, which shows it in the reading pane. */
+function revalidateTicket(number: number) {
+  revalidatePath(`/tickets/${number}`);
+  revalidatePath("/tickets");
+}
+
 async function loadForAgent(ticketId: string) {
   const user = await requireUser();
   const ticket = await prisma.ticket.findUniqueOrThrow({ where: { id: ticketId }, include: { assignees: true } });
@@ -101,7 +107,7 @@ export async function updateTicket(ticketId: string, form: FormData) {
       data: events.map((body) => ({ ticketId: ticket.id, authorId: user.id, kind: "event", body })),
     });
   }
-  revalidatePath(`/tickets/${ticket.number}`);
+  revalidateTicket(ticket.number);
 }
 
 export async function takeTicket(ticketId: string) {
@@ -117,7 +123,7 @@ export async function takeTicket(ticketId: string) {
   await prisma.ticketActivity.create({
     data: { ticketId: ticket.id, authorId: user.id, kind: "event", body: "took this ticket" },
   });
-  revalidatePath(`/tickets/${ticket.number}`);
+  revalidateTicket(ticket.number);
 }
 
 export async function addComment(ticketId: string, form: FormData) {
@@ -140,7 +146,7 @@ export async function addComment(ticketId: string, form: FormData) {
       data: { ticketId, authorId: user.id, kind: "event", body: "reopened by reply" },
     });
   }
-  revalidatePath(`/tickets/${ticket.number}`);
+  revalidateTicket(ticket.number);
 }
 
 /** Requester confirms their issue is fixed. */
@@ -150,7 +156,7 @@ export async function closeOwnTicket(ticketId: string) {
   assert(ticket.requesterId === user.id);
   await prisma.ticket.update({ where: { id: ticketId }, data: { status: "closed", resolvedAt: ticket.resolvedAt ?? new Date() } });
   await prisma.ticketActivity.create({ data: { ticketId, authorId: user.id, kind: "event", body: "closed this ticket" } });
-  revalidatePath(`/tickets/${ticket.number}`);
+  revalidateTicket(ticket.number);
 }
 
 /** Uses consumables on a ticket: lowers stock and links the movement to the ticket. */
@@ -169,5 +175,5 @@ export async function consumeSupply(ticketId: string, form: FormData) {
       data: { ticketId, authorId: user.id, kind: "event", body: `used ${qty} ${supply.unit} of ${supply.name}` },
     }),
   ]);
-  revalidatePath(`/tickets/${ticket.number}`);
+  revalidateTicket(ticket.number);
 }
