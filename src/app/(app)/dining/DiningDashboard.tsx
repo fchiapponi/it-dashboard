@@ -184,8 +184,9 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
   // ------------------------------------------------------------- summary
   const served = selected.map((d) => ({ d, t: dayTotal(d) })).filter((x): x is { d: Day; t: number } => !!x.t);
   const sum = served.reduce((a, x) => a + x.t, 0);
-  const peak = served.reduce<(typeof served)[number] | null>((a, x) => (!a || x.t > a.t ? x : a), null);
   const weekdaysServed = served.filter((x) => x.d.wd < 5);
+  const weekendsServed = served.filter((x) => x.d.wd >= 5);
+  const monthsServed = new Set(served.map((x) => `${x.d.d.getFullYear()}-${x.d.d.getMonth()}`)).size;
   const perMeal = (["breakfast", "lunch", "dinner"] as Meal[]).map((m) => ({
     m,
     s: selected.reduce((a, d) => a + halls.reduce((b, h) => b + (hallMeal(d, h.id, m) ?? 0), 0), 0),
@@ -209,6 +210,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
   let trendTitle: string,
     trendNote = "";
   let trend: Bucket[];
+  let byMonth: Bucket[] = [];
   if (months.size > 1) {
     trendTitle = "Total per month";
     const by = new Map<string, Day[]>();
@@ -224,6 +226,15 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
         title: fmtDay(group[0].d, { month: "long", year: "numeric" }),
       }),
     );
+    byMonth = [...by].map(([k, group]) => {
+      const n = group.filter((d) => dayTotal(d)).length;
+      return average(group, {
+        key: k,
+        label: fmtDay(group[0].d, { month: "short" }),
+        tick: true,
+        title: `${fmtDay(group[0].d, { month: "long", year: "numeric" })} · average of ${n} days`,
+      });
+    });
     const last = selected[selected.length - 1];
     if (
       last &&
@@ -424,13 +435,6 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
         ) : (
           <Tile label="Average per day" value={fmt(served.length ? sum / served.length : null)} note={`${served.length} days with service`} />
         )}
-        <Tile
-          label="Busiest day"
-          value={peak ? fmt(peak.t) : "–"}
-          note={
-            peak ? `${fmtDay(peak.d.d, { weekday: "long", day: "numeric", month: "long" })}${peak.d.tag ? ` · ${peak.d.tag.toLowerCase()}` : ""}` : ""
-          }
-        />
         {dayFilter === "brunch" ? (
           <Tile
             label="Brunches"
@@ -438,8 +442,17 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
             note={`${served.filter((x) => x.d.wd === 5).length} on Saturday · ${served.filter((x) => x.d.wd === 6).length} on Sunday`}
           />
         ) : (
-          <Tile label="Days with a kitchen note" value={String(selected.filter((d) => d.tag).length)} note="Brunch, BBQ, special dinners, openings" />
+          <Tile
+            label="Average weekend day"
+            value={fmt(weekendsServed.length ? weekendsServed.reduce((a, x) => a + x.t, 0) / weekendsServed.length : null)}
+            note={`Sat–Sun, ${weekendsServed.length} days with service`}
+          />
         )}
+        <Tile
+          label="Average per month"
+          value={fmt(monthsServed ? sum / monthsServed : null)}
+          note={`${monthsServed} ${monthsServed === 1 ? "month" : "months"} with service`}
+        />
       </div>
 
       <Section
@@ -491,11 +504,20 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
         </Section>
       </div>
 
-      <Section title={trendTitle} actions={<span className="text-xs text-dim">{trendNote}</span>}>
-        <div className="p-4">
-          <StackedBars buckets={trend} series={halls} height={280} minStep={56} showTotals />
-        </div>
-      </Section>
+      <div className={cn("grid gap-6", byMonth.length > 0 && "lg:grid-cols-2")}>
+        <Section title={trendTitle} actions={<span className="text-xs text-dim">{trendNote}</span>}>
+          <div className="p-4">
+            <StackedBars buckets={trend} series={halls} height={280} minStep={56} showTotals />
+          </div>
+        </Section>
+        {byMonth.length > 0 && (
+          <Section title="Average day by month" actions={<span className="text-xs text-dim">days with service</span>}>
+            <div className="p-4">
+              <StackedBars buckets={byMonth} series={halls} height={280} minStep={56} showTotals />
+            </div>
+          </Section>
+        )}
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Section title="Average by weekday" actions={<span className="text-xs text-dim">days with service</span>}>
