@@ -6,11 +6,13 @@ import { readXlsx, serialToISODate, type CellValue } from "@/lib/xlsx";
  * row per day. Columns: A date · B–D De Nobili breakfast/lunch/dinner ·
  * E–F Hadsall lunch/dinner · G–H Focolare lunch/dinner · I–J totals
  * (ignored, recomputed) · K free-text note. A meal cell can hold a word
- * instead of a number ("BRUNCH", "BBQ", ...): that becomes the day's tag.
+ * instead of a number ("BBQ", "SPECIAL DINNER", ...): that becomes the day's
+ * tag. "BRUNCH" in the De Nobili breakfast cell is a meal of its own instead:
+ * its count is in the lunch cell, and the day has no breakfast or lunch.
  */
 export type DiningDay = {
   date: string; // YYYY-MM-DD
-  dn: { breakfast: number | null; lunch: number | null; dinner: number | null };
+  dn: { breakfast: number | null; brunch: number | null; lunch: number | null; dinner: number | null };
   had: { lunch: number | null; dinner: number | null };
   foc: { lunch: number | null; dinner: number | null };
   tag: string;
@@ -37,20 +39,24 @@ function parseWorkbook(buf: Buffer): DiningDay[] {
       const cells = row.slice(1, 8);
       const num = (v: CellValue | undefined) => (typeof v === "number" ? Math.round(v) : null);
       const words = [...cells.filter((v): v is string => typeof v === "string"), ...(typeof row[10] === "string" ? [row[10]] : [])];
+      const word = (v: string) => TYPO[v.trim().toUpperCase()] ?? v.trim().toUpperCase();
+      const brunch = typeof cells[0] === "string" && word(cells[0]) === "BRUNCH";
       const tags: string[] = [];
       for (const w of words) {
-        const t = TYPO[w.trim().toUpperCase()] ?? w.trim().toUpperCase();
-        if (t && t !== "-" && t !== "NO" && !tags.includes(t)) tags.push(t);
+        const t = word(w);
+        if (t && t !== "-" && t !== "NO" && t !== "BRUNCH" && !tags.includes(t)) tags.push(t);
       }
       const day: DiningDay = {
         date: serialToISODate(dateCell),
-        dn: { breakfast: num(cells[0]), lunch: num(cells[1]), dinner: num(cells[2]) },
+        dn: brunch
+          ? { breakfast: null, brunch: num(cells[1]), lunch: null, dinner: num(cells[2]) }
+          : { breakfast: num(cells[0]), brunch: null, lunch: num(cells[1]), dinner: num(cells[2]) },
         had: { lunch: num(cells[3]), dinner: num(cells[4]) },
         foc: { lunch: num(cells[5]), dinner: num(cells[6]) },
         tag: tags.join(" · "),
       };
       // Skip days nobody has filled in yet (the sheet pre-fills zeros).
-      if (cells.some((v) => typeof v === "number" && v > 0) || day.tag) days.push(day);
+      if (cells.some((v) => typeof v === "number" && v > 0) || day.tag || brunch) days.push(day);
     }
   }
   return days.sort((a, b) => a.date.localeCompare(b.date));

@@ -11,16 +11,17 @@ import { Donut, type Slice } from "./Donut";
 import { StackedBars, type Bucket, type Series } from "./StackedBars";
 
 type HallId = "dn" | "had" | "foc";
-type Meal = "breakfast" | "lunch" | "dinner";
-type DayFilter = "all" | "weekdays" | "weekends" | "brunch";
+type Meal = "breakfast" | "brunch" | "lunch" | "dinner";
+type DayFilter = "all" | "weekdays" | "weekends";
 
 const HALLS: (Series & { id: HallId })[] = [
   { id: "dn", name: "De Nobili", color: "var(--hall-1)" },
   { id: "had", name: "Hadsall", color: "var(--hall-2)" },
   { id: "foc", name: "Focolare", color: "var(--hall-3)" },
 ];
-const MEALS: Record<Meal, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner" };
-const DAY_FILTERS: Record<DayFilter, string> = { all: "All", weekdays: "Weekdays", weekends: "Weekends", brunch: "Brunch" };
+const MEALS: Record<Meal, string> = { breakfast: "Breakfast", brunch: "Brunch", lunch: "Lunch", dinner: "Dinner" };
+const MEAL_IDS = Object.keys(MEALS) as Meal[];
+const DAY_FILTERS: Record<DayFilter, string> = { all: "All", weekdays: "Weekdays", weekends: "Weekends" };
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const WEEKDAY_NAMES = ["Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays", "Sundays"];
 
@@ -28,7 +29,7 @@ const WEEKDAY_NAMES = ["Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Friday
 const POLL_MS = 5 * 60_000;
 
 /** Breakfast → dinner as one hue, light → dark: they are in order through the day. */
-const MEAL_COLORS: Record<Meal, string> = { breakfast: "var(--meal-1)", lunch: "var(--meal-2)", dinner: "var(--meal-3)" };
+const MEAL_COLORS: Record<Meal, string> = { breakfast: "var(--meal-1)", brunch: "var(--meal-2)", lunch: "var(--meal-3)", dinner: "var(--meal-4)" };
 
 const ALL_KINDS = Object.keys(DAY_KINDS) as DayKind[];
 /** One-click choices in the school calendar picker. */
@@ -43,11 +44,10 @@ type Day = DiningDay & { d: Date; wd: number; cal: CalendarDay };
 const fmt = (n: number | null | undefined) => (n == null ? "–" : Math.round(n).toLocaleString("en-GB"));
 const fmtDay = (d: Date, o: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" }) => d.toLocaleDateString("en-GB", o);
 const titleCase = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
-const isBrunch = (tag: string) => tag.includes("BRUNCH");
 
 function hallMeal(day: DiningDay, hall: HallId, meal: Meal): number | null {
   if (hall === "dn") return day.dn[meal];
-  return meal === "breakfast" ? null : day[hall][meal];
+  return meal === "breakfast" || meal === "brunch" ? null : day[hall][meal];
 }
 
 export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
@@ -123,13 +123,12 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
   })();
   const period = periodKey === "custom" && customPeriod ? customPeriod : (periods.find((p) => p.key === periodKey) ?? periods[0]);
   const halls = HALLS.filter((h) => hallIds.includes(h.id));
-  const meals: Meal[] = meal === "all" ? ["breakfast", "lunch", "dinner"] : [meal];
+  const meals: Meal[] = meal === "all" ? MEAL_IDS : [meal];
   const mealWord = meal === "all" ? "meals" : MEALS[meal].toLowerCase();
 
-  const passes = (d: { wd: number; tag: string; kind: DayKind | null }) =>
+  const passes = (d: { wd: number; kind: DayKind | null }) =>
     !(dayFilter === "weekdays" && d.wd >= 5) &&
     !(dayFilter === "weekends" && d.wd < 5) &&
-    !(dayFilter === "brunch" && !isBrunch(d.tag)) &&
     // Days past the calendar's end have no kind: they only show with every kind ticked.
     (allKinds || (!!d.kind && kinds.includes(d.kind)));
 
@@ -187,7 +186,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
   const weekdaysServed = served.filter((x) => x.d.wd < 5);
   const weekendsServed = served.filter((x) => x.d.wd >= 5);
   const monthsServed = new Set(served.map((x) => `${x.d.d.getFullYear()}-${x.d.d.getMonth()}`)).size;
-  const perMeal = (["breakfast", "lunch", "dinner"] as Meal[]).map((m) => ({
+  const perMeal = MEAL_IDS.map((m) => ({
     m,
     s: selected.reduce((a, d) => a + halls.reduce((b, h) => b + (hallMeal(d, h.id, m) ?? 0), 0), 0),
   }));
@@ -306,7 +305,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
     { key: "kind", label: "Day", group: "Calendar", left: true },
   ];
   for (const m of meals) {
-    const servingHalls = halls.filter((h) => h.id === "dn" || m !== "breakfast"); // breakfast is De Nobili only
+    const servingHalls = halls.filter((h) => h.id === "dn" || (m !== "breakfast" && m !== "brunch")); // breakfast and brunch are De Nobili only
     for (const h of servingHalls) cols.push({ key: `${h.id}.${m}`, label: h.name, group: MEALS[m] });
     if (servingHalls.length > 1) cols.push({ key: `total.${m}`, label: "Total", group: MEALS[m], total: true });
   }
@@ -435,7 +434,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
         ) : (
           <Tile label="Average per day" value={fmt(served.length ? sum / served.length : null)} note={`${served.length} days with service`} />
         )}
-        {dayFilter === "brunch" ? (
+        {meal === "brunch" ? (
           <Tile
             label="Brunches"
             value={String(served.length)}

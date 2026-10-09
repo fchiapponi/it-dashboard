@@ -23,9 +23,10 @@
   --cal-orientation: #d8b400;
   --cal-holiday: #cf5a52;
   --cal-summer: #c79a5a;
-  --meal-1: #ec8fba;
-  --meal-2: #d0477f;
-  --meal-3: #93204f;
+  --meal-1: #f0a6c8;
+  --meal-2: #e06a9d;
+  --meal-3: #c23a72;
+  --meal-4: #8a1d4a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -49,9 +50,10 @@
     --cal-orientation: #c9a800;
     --cal-holiday: #d9605a;
     --cal-summer: #b08850;
-    --meal-1: #e88bb6;
-    --meal-2: #cc4a85;
-    --meal-3: #8f2a58;
+    --meal-1: #eba2c4;
+    --meal-2: #da6a9b;
+    --meal-3: #b83d73;
+    --meal-4: #872850;
   }
 }
 
