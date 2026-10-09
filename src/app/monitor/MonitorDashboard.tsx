@@ -70,9 +70,16 @@ function printerFault(printer: FaultLike): "error" | "warning" | null {
 
 const FAULT_RANK = { error: 0, warning: 1, none: 2 } as const;
 
+// 0 = a cartridge is empty, 1 = low, 2 = fine.
+function inkRank(printer: { supplies: SupplyLike[] }): number {
+  const minPercent = minTonerPercent(printer);
+  if (minPercent <= 0) return 0;
+  return minPercent < LOW_SUPPLY_THRESHOLD ? 1 : 2;
+}
+
 // Offline/error printers first, then online ones reporting a fault (errors
-// before paper warnings), then ones low on ink/toner (lowest first), then the
-// rest by lifetime page count (busiest first).
+// before paper warnings), then ones with an empty cartridge, then ones low on
+// ink/toner, then the rest — each group by lifetime page count (busiest first).
 function sortPrintersByUrgency<
   T extends FaultLike & { name: string; pageCount: number | null; supplies: SupplyLike[] },
 >(
@@ -86,10 +93,9 @@ function sortPrintersByUrgency<
     const aFault = FAULT_RANK[printerFault(a) ?? "none"];
     const bFault = FAULT_RANK[printerFault(b) ?? "none"];
     if (aFault !== bFault) return aFault - bFault;
-    const aLow = minTonerPercent(a) < LOW_SUPPLY_THRESHOLD;
-    const bLow = minTonerPercent(b) < LOW_SUPPLY_THRESHOLD;
-    if (aLow !== bLow) return aLow ? -1 : 1;
-    if (aLow) return minTonerPercent(a) - minTonerPercent(b);
+    const aInk = inkRank(a);
+    const bInk = inkRank(b);
+    if (aInk !== bInk) return aInk - bInk;
     return (b.pageCount ?? -1) - (a.pageCount ?? -1);
   });
 }
@@ -258,6 +264,9 @@ export default function TvDashboardPage() {
       if (fault === "error" || minPercent <= 0) return false;
       return fault === "warning" || minPercent < LOW_SUPPLY_THRESHOLD;
     }) ?? [];
+  // Printers whose card is red: online with an error fault or an empty supply.
+  const printersWithError =
+    printers?.filter((p) => p.status === "online" && (printerFault(p) === "error" || minTonerPercent(p) <= 0)) ?? [];
   const printersWithEmptySupply =
     printers?.filter((p) => p.supplies.some((s) => isTonerLike(s) && s.levelPercent === 0)) ?? [];
 
@@ -285,7 +294,7 @@ export default function TvDashboardPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-6 gap-3">
         <StatTile
           label="Access points online"
           value={`${apsOnline}/${accessPoints?.length ?? 0}`}
@@ -309,6 +318,12 @@ export default function TvDashboardPage() {
           value={printersWithAlert.length}
           icon={<AlertTriangle className="h-4 w-4" />}
           tone={printersWithAlert.length ? "amber" : "accent"}
+        />
+        <StatTile
+          label="Printer error"
+          value={printersWithError.length}
+          icon={<AlertTriangle className="h-4 w-4" />}
+          tone={printersWithError.length ? "red" : "accent"}
         />
         <StatTile
           label="Supply empty"
