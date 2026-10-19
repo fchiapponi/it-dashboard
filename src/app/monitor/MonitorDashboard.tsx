@@ -1,8 +1,8 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { Printer, Wifi, AlertTriangle, TerminalSquare, Users } from "lucide-react";
-import { usePrinters, useAccessPoints, useTrello } from "@/lib/hooks";
+import { Printer, Server, Camera, AlertTriangle, TerminalSquare } from "lucide-react";
+import { usePrinters, useServers, useCameras, useTrello } from "@/lib/hooks";
 import { StatTile } from "@/components/monitor/StatTile";
 import { TerminalPanel } from "@/components/monitor/TerminalPanel";
 import { StatusBadge, statusColor, type Status } from "@/components/monitor/StatusBadge";
@@ -151,14 +151,15 @@ function supplyShortLabel(supply: { name: string; type: string }): string {
 
 export default function TvDashboardPage() {
   const { data: printers } = usePrinters();
-  const { data: accessPoints } = useAccessPoints();
+  const { data: servers } = useServers();
+  const { data: cameras } = useCameras();
   const { data: trelloLists } = useTrello();
   // Finished work isn't worth screen space on the TV.
   const openTrelloLists = trelloLists?.filter((list) => list.name.trim().toLowerCase() !== "done");
 
   const printersOnline = printers?.filter((p) => p.status === "online").length ?? 0;
-  const apsOnline = accessPoints?.filter((a) => a.status === "online").length ?? 0;
-  const totalClients = accessPoints?.reduce((sum, a) => sum + a.clientCount, 0) ?? 0;
+  const serversOnline = servers?.filter((s) => s.status === "online").length ?? 0;
+  const camerasOnline = cameras?.filter((c) => c.status === "online").length ?? 0;
 
   const sortedPrinters = sortPrintersByUrgency(printers);
   const offlinePrinters = sortedPrinters.filter((p) => p.status !== "online");
@@ -296,16 +297,16 @@ export default function TvDashboardPage() {
 
       <div className="grid grid-cols-6 gap-3">
         <StatTile
-          label="Access points online"
-          value={`${apsOnline}/${accessPoints?.length ?? 0}`}
-          icon={<Wifi className="h-4 w-4" />}
-          tone="cyan"
+          label="Servers online"
+          value={`${serversOnline}/${servers?.length ?? 0}`}
+          icon={<Server className="h-4 w-4" />}
+          tone={servers && serversOnline < servers.length ? "red" : "cyan"}
         />
         <StatTile
-          label="Clients connected"
-          value={totalClients}
-          icon={<Users className="h-4 w-4" />}
-          tone="cyan"
+          label="Cameras online"
+          value={`${camerasOnline}/${cameras?.length ?? 0}`}
+          icon={<Camera className="h-4 w-4" />}
+          tone={cameras && camerasOnline < cameras.length ? "amber" : "cyan"}
         />
         <StatTile
           label="Printers online"
