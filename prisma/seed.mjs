@@ -20,7 +20,14 @@ const DEPARTMENTS = [
     slug: "facilities",
     color: "#d97706",
     description: "Building maintenance, repairs, heating, furniture and room setups",
-    categories: ["Electrical", "Plumbing", "Heating / AC", "Furniture", "Cleaning", "Room setup", "Grounds"],
+    categories: ["Plumbing", "Heating / AC", "Furniture", "Cleaning", "Room setup", "Grounds"],
+  },
+  {
+    name: "Electrician",
+    slug: "electrician",
+    color: "#ca8a04",
+    description: "Power, lighting, sockets, wiring, breakers and electrical safety",
+    categories: ["Power outage", "Lighting", "Sockets & switches", "Wiring", "Breakers & panels", "Event power"],
   },
   {
     name: "Kitchen & Dining",

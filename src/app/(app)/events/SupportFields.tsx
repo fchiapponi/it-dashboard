@@ -3,6 +3,7 @@ import { Field } from "@/components/ui";
 const PLACEHOLDERS: Record<string, string> = {
   it: "e.g. projector + 2 wireless mics, laptop for slides, livestream",
   facilities: "e.g. 120 chairs in rows, stage, 4 tables, extra cleaning",
+  electrician: "e.g. 3 extra sockets on stage, stage lighting, power for a food truck outside",
   kitchen: "e.g. coffee break for 40 at 10:30, lunch buffet, 3 vegetarian, 1 gluten-free",
 };
 

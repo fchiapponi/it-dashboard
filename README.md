@@ -2,13 +2,13 @@
 
 One web app for TASIS staff to:
 
-- **Tickets**: report problems to **IT**, **Facilities** or **Kitchen & Dining** (more departments can be added from Admin). Each ticket has a category, location, priority, assignee, a reply thread and internal notes that only agents can see.
+- **Tickets**: report problems to **IT**, **Facilities**, **Electrician** or **Kitchen & Dining** (more departments can be added from Admin). Each ticket has a category, location, priority, assignee, a reply thread and internal notes that only agents can see.
 - **Inventory**:
   - **Assets** with serial numbers. Each one has a QR label; scanning it opens the asset page with a *Report a problem* button.
   - **Consumables**, with stock movements and low-stock warnings. Agents can book consumables used on a ticket directly from that ticket.
 - **Visitors**: staff pre-register the people they expect. Reception checks visitors in and out with a badge number, prints visitor badges and always has an "on site now" list.
 - **Deliveries**: reception logs incoming parcels and marks them as collected. Recipients see what's waiting for them on their dashboard.
-- **Events**: staff create events and say what IT, Facilities and Kitchen & Dining need to do. Each need becomes a ticket for that department, linked back to the event. The app warns when two events are booked in the same place at the same time.
+- **Events**: staff create events and say what IT, Facilities, Electrician and Kitchen & Dining need to do. Each need becomes a ticket for that department, linked back to the event. The app warns when two events are booked in the same place at the same time.
 - **Dining**: a dashboard of the meals served each day in De Nobili, Hadsall and Focolare, read from the kitchen's Google Sheet and matched against the school calendar (classes, weekends, holidays, orientation, summer).
 - **Monitor**: the IT control-room screen at `/monitor`, made for a TV: printers (status, faults, ink/toner, page counts), Wi-Fi access points from Meraki and the IT Trello board. See [Monitor](#monitor-control-room-screen).
 

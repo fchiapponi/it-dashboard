@@ -25,7 +25,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           <Image src="/tasis-crest.png" alt="TASIS One" width={235} height={175} priority className="h-20 w-auto" />
         </div>
         <p className="mb-6 text-sm text-dim">
-          Report problems to IT, Facilities and Kitchen & Dining, register visitors, track deliveries and request event support.
+          Report problems to IT, Facilities, Electrician and Kitchen & Dining, register visitors, track deliveries and request event support.
         </p>
         {error && <p className="mb-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">{error}</p>}
         <a href={`/api/auth/google?returnTo=${encodeURIComponent(returnTo)}`} className="btn btn-primary w-full py-2.5">

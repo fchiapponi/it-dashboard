@@ -89,7 +89,7 @@ export default async function TicketsPage({ searchParams }: PageProps<"/tickets"
     <>
       <PageHeader
         title="Tickets"
-        subtitle="Requests to IT, Facilities and Kitchen & Dining"
+        subtitle="Requests to IT, Facilities, Electrician and Kitchen & Dining"
         actions={
           <Link href={`/tickets/new?dept=${dept.slug}`} className="btn btn-primary">
             <Plus className="size-4" /> New ticket
