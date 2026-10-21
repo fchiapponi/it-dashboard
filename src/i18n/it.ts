@@ -56,6 +56,18 @@ export const it = {
   "Visitors on site": "Visitatori presenti",
   "Still expected today": "Ancora attesi oggi",
   "Parcels on the shelf": "Pacchi sullo scaffale",
+  "active tickets": "ticket attivi",
+  "Needs attention": "Da gestire",
+  "Nothing urgent, overdue or unassigned.": "Niente di urgente, scaduto o non assegnato.",
+  "updated {when}": "aggiornato {when}",
+  "due {date}": "scadenza {date}",
+  "No open tickets.": "Nessun ticket aperto.",
+  "No visitors today.": "Nessun visitatore oggi.",
+  "Next 7 days": "Prossimi 7 giorni",
+  "View all": "Vedi tutti",
+  Today: "Oggi",
+  Tomorrow: "Domani",
+  Parcel: "Pacco",
 
   // ------------------------------------------------------------ login
   "Please sign in with your school Google account.": "Accedi con il tuo account Google della scuola.",
@@ -407,6 +419,7 @@ export const it = {
   "A4 sheet": "Foglio A4",
   "Select assets in the inventory list first.": "Seleziona prima i beni nella lista dell'inventario.",
   "In the print dialog choose the Brother QL-820NWB, paper 29mm x 90mm (DK-11201), margins None, scale 100%.": "Nella finestra di stampa scegli la Brother QL-820NWB, carta 29mm x 90mm (DK-11201), margini Nessuno, scala 100%.",
+  "In the print dialog choose the Brother PT-P750W, paper 24mm tape (TZe), margins None, scale 100%.": "Nella finestra di stampa scegli la Brother PT-P750W, carta nastro 24mm (TZe), margini Nessuno, scala 100%.",
   "TASIS property": "Proprietà TASIS",
   "Problem? Scan to report": "Problemi? Scansiona per segnalare",
 

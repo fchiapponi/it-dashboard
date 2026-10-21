@@ -4,22 +4,51 @@ import { PrintButton } from "@/components/PrintButton";
 import { isAgent, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { assetQrSvg } from "@/lib/qr";
+import { cn } from "@/lib/utils";
 import { getI18n } from "@/i18n/server";
 
-/*
- * Brother QL-820NWB with DK-11201 die-cut labels (29×90 mm): one label per page,
- * landscape. In the print dialog pick the Brother, paper "29mm x 90mm",
- * margins None and scale 100%.
- */
-const QL_PAGE = `
+/** Page CSS for label printers: one label per page, landscape, no margins. */
+const rollPage = (size: string) => `
 @media print {
-  @page { size: 90mm 29mm; margin: 0; }
+  @page { size: ${size}; margin: 0; }
   html, body { margin: 0 !important; padding: 0 !important; background: white; }
   main { padding: 0 !important; }
   main > div { max-width: none !important; }
 }`;
 
-/** Printable QR labels for the assets passed as ?tag=…&tag=…, as an A4 sheet or Brother QL rolls (?format=ql). */
+/*
+ * Label printers, one label per page. In the print dialog pick the printer and
+ * the paper below, margins None and scale 100%.
+ * - QL-820NWB: DK-11201 die-cut labels, 29×90 mm.
+ * - PT-P750W: 24 mm TZe tape, cut at 64 mm; only the middle ~18 mm of the
+ *   tape is printable, hence the vertical padding.
+ */
+const ROLLS = {
+  ql: {
+    name: "Brother 29×90 mm",
+    page: rollPage("90mm 29mm"),
+    hint: "In the print dialog choose the Brother QL-820NWB, paper 29mm x 90mm (DK-11201), margins None, scale 100%.",
+    label: "h-[29mm] w-[90mm] gap-[3mm] px-[3mm] py-[2mm]",
+    qr: "h-[24mm] w-[24mm]",
+    caption: "text-[7pt]",
+    tag: "text-[14pt]",
+    title: "line-clamp-2 text-[8pt]",
+    footer: "mt-[1mm] text-[6.5pt]",
+  },
+  pt: {
+    name: "P-touch 24 mm",
+    page: rollPage("64mm 24mm"),
+    hint: "In the print dialog choose the Brother PT-P750W, paper 24mm tape (TZe), margins None, scale 100%.",
+    label: "h-[24mm] w-[64mm] gap-[2mm] px-[2mm] py-[3mm]",
+    qr: "h-[18mm] w-[18mm]",
+    caption: "text-[5.5pt]",
+    tag: "text-[11pt]",
+    title: "truncate text-[6.5pt]",
+    footer: "text-[5pt]",
+  },
+} as const;
+
+/** Printable QR labels for the assets passed as ?tag=…&tag=…, as an A4 sheet or for a label printer (?format=ql|pt). */
 export default async function LabelsPage({ searchParams }: PageProps<"/inventory/labels">) {
   const user = await requireUser();
   if (!isAgent(user)) notFound();
@@ -27,7 +56,7 @@ export default async function LabelsPage({ searchParams }: PageProps<"/inventory
   const params = await searchParams;
   const raw = params.tag;
   const tags = (Array.isArray(raw) ? raw : raw ? [raw] : []).map((tag) => tag.toUpperCase());
-  const ql = params.format === "ql";
+  const roll = params.format === "ql" || params.format === "pt" ? ROLLS[params.format] : null;
 
   const assets = await prisma.asset.findMany({ where: { tag: { in: tags } }, orderBy: { tag: "asc" } });
   const labels = await Promise.all(assets.map(async (a) => ({ ...a, qr: await assetQrSvg(a.tag) })));
@@ -45,35 +74,35 @@ export default async function LabelsPage({ searchParams }: PageProps<"/inventory
           {t(labels.length === 1 ? "{n} label" : "{n} labels", { n: labels.length })}
         </h1>
         <div className="flex gap-2">
-          <Link href={href()} className={ql ? "btn" : "btn btn-primary"}>
+          <Link href={href()} className={roll ? "btn" : "btn btn-primary"}>
             {t("A4 sheet")}
           </Link>
-          <Link href={href("ql")} className={ql ? "btn btn-primary" : "btn"}>
-            Brother 29×90 mm
-          </Link>
+          {Object.entries(ROLLS).map(([format, r]) => (
+            <Link key={format} href={href(format)} className={r === roll ? "btn btn-primary" : "btn"}>
+              {r.name}
+            </Link>
+          ))}
           <PrintButton />
         </div>
       </div>
       {labels.length === 0 && <p className="text-sm text-dim">{t("Select assets in the inventory list first.")}</p>}
 
-      {ql ? (
+      {roll ? (
         <>
-          <style>{QL_PAGE}</style>
-          <p className="no-print mb-4 text-sm text-dim">
-            {t("In the print dialog choose the Brother QL-820NWB, paper 29mm x 90mm (DK-11201), margins None, scale 100%.")}
-          </p>
+          <style>{roll.page}</style>
+          <p className="no-print mb-4 text-sm text-dim">{t(roll.hint)}</p>
           <div className="flex flex-col gap-3 print:block">
             {labels.map((a) => (
               <div
                 key={a.id}
-                className="flex h-[29mm] w-[90mm] items-center gap-[3mm] overflow-hidden border border-zinc-300 bg-white px-[3mm] py-[2mm] text-black break-after-page last:break-after-auto print:border-0"
+                className={cn("flex items-center overflow-hidden border border-zinc-300 bg-white text-black break-after-page last:break-after-auto print:border-0", roll.label)}
               >
-                <div className="h-[24mm] w-[24mm] shrink-0 [&_svg]:h-full [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: a.qr }} />
+                <div className={cn("shrink-0 [&_svg]:h-full [&_svg]:w-full", roll.qr)} dangerouslySetInnerHTML={{ __html: a.qr }} />
                 <div className="min-w-0 leading-tight">
-                  <div className="text-[7pt] font-semibold tracking-wider uppercase">{t("TASIS property")}</div>
-                  <div className="font-mono text-[14pt] font-bold">{a.tag}</div>
-                  <div className="line-clamp-2 text-[8pt]">{a.name}</div>
-                  <div className="mt-[1mm] text-[6.5pt]">{t("Problem? Scan to report")}</div>
+                  <div className={cn("font-semibold tracking-wider uppercase", roll.caption)}>{t("TASIS property")}</div>
+                  <div className={cn("font-mono font-bold", roll.tag)}>{a.tag}</div>
+                  <div className={roll.title}>{a.name}</div>
+                  <div className={roll.footer}>{t("Problem? Scan to report")}</div>
                 </div>
               </div>
             ))}
