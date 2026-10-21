@@ -21,12 +21,30 @@ const ICONS = {
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; badge?: number };
 
-export function Nav({ items, user, signOut }: { items: NavItem[]; user: { name: string; email: string }; signOut?: () => Promise<void> }) {
+export function Nav({
+  items,
+  user,
+  signOut,
+  autoHide,
+}: {
+  items: NavItem[];
+  user: { name: string; email: string };
+  signOut?: () => Promise<void>;
+  // Off-screen until the mouse reaches the left edge (the monitor's TV view).
+  autoHide?: boolean;
+}) {
   const pathname = usePathname();
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
-  return (
-    <aside className="no-print border-b border-line bg-panel md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col md:border-r md:border-b-0">
+  const aside = (
+    <aside
+      className={cn(
+        "no-print border-line bg-panel",
+        autoHide
+          ? "absolute inset-y-0 left-0 flex w-60 -translate-x-full flex-col border-r shadow-2xl transition-transform duration-200 group-hover:translate-x-0"
+          : "border-b md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col md:border-r md:border-b-0",
+      )}
+    >
       <div className="relative flex items-center justify-center px-4 py-3 md:py-5">
         <Link href="/" className="flex items-center">
           <Image src="/tasis-crest.png" alt="TASIS One" width={235} height={175} priority className="h-12 w-auto md:h-16" />
@@ -73,4 +91,8 @@ export function Nav({ items, user, signOut }: { items: NavItem[]; user: { name: 
       </div>
     </aside>
   );
+
+  // A thin strip along the left edge catches the mouse; the sidebar stays open
+  // while the pointer is over it, since it is part of the same hover group.
+  return autoHide ? <div className="group fixed inset-y-0 left-0 z-50 w-2">{aside}</div> : aside;
 }
