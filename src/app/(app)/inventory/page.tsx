@@ -11,7 +11,6 @@ import {
   extraLabel,
   filterQuery,
   INK_COLUMN,
-  isDeviceField,
   isPrinter,
   parseExtra,
   parseReadings,
@@ -27,14 +26,15 @@ import type { Locale } from "@/i18n";
 import { getI18n } from "@/i18n/server";
 import { lowStockCount, managedDepartments } from "@/lib/tickets";
 import { ConfirmButton } from "../boards/ConfirmButton";
-import { bulkUpdateAssets, deleteAssets, refreshAllPrinters } from "./actions";
+import { deleteAssets, refreshAllPrinters } from "./actions";
 import { InkLevels } from "./InkLevels";
+import { PrintLabelsButton } from "./labels/PrintLabelsButton";
+import { RenameListButton } from "./RenameListButton";
 import { PrinterButton } from "./PrinterButton";
 import { SelectAll } from "./SelectAll";
 import { InventoryTabs } from "./Tabs";
 
 const LIMIT = 2000;
-const SETTABLE = new Set(["name", "manufacturer", "model", "serialNumber", "assignedTo", "notes"]);
 
 export default async function InventoryPage({ searchParams }: PageProps<"/inventory">) {
   const user = await requireUser();
@@ -79,10 +79,21 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
   // Each list has its own columns, chosen on /inventory/columns.
   const columns = saved ?? defaultColumns(type, assets);
   const columnsHref = `/inventory/columns?dept=${dept.slug}&type=${encodeURIComponent(type)}`;
-  // Columns that "Set field…" can fill: plain text fields and custom fields.
-  // On printer lists, serial/model/manufacturer come from the printers.
-  const settable = columns.filter((c) => (SETTABLE.has(c) && !(isPrinter(f) && isDeviceField(c))) || extraLabel(c) !== null);
   const addHref = `/inventory/new?dept=${dept.slug}${type ? `&type=${encodeURIComponent(type)}` : ""}`;
+
+  const filterTag = (key: string, on: boolean, text: string, to: typeof f, count?: number) => (
+    <Link
+      key={key || "any"}
+      href={`/inventory${filterQuery(to)}`}
+      className={cn(
+        "rounded-full border px-3 py-1 text-xs",
+        on ? "border-accent bg-accent font-medium text-white" : "border-line text-dim hover:border-accent/50 hover:text-fg",
+      )}
+    >
+      {text}
+      {count !== undefined && <span className={cn("ml-1.5", on ? "text-white/80" : "text-dim")}>{count}</span>}
+    </Link>
+  );
 
   const sortHeader = (key: string, text: string) => (
     <th key={key}>
@@ -130,6 +141,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
             <span className={cn("ml-1.5 text-xs", l.type === type ? "text-white/80" : "text-dim")}>{l.count}</span>
           </Link>
         ))}
+        {type && <RenameListButton departmentId={dept.id} type={type} />}
         <Link href={`/inventory/new?dept=${dept.slug}&newList=1`} className="rounded-lg px-3 py-1.5 text-sm text-dim hover:text-fg">
           <Plus className="inline size-3.5" /> {t("New list")}
         </Link>
@@ -147,35 +159,37 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
         </div>
       ) : (
         <>
-          <form className="mb-4 flex flex-wrap gap-2" action="/inventory">
+          <form className="mb-3 flex flex-wrap gap-2" action="/inventory">
             <input type="hidden" name="dept" value={dept.slug} />
             <input type="hidden" name="type" value={type} />
+            {f.status && <input type="hidden" name="status" value={f.status} />}
+            {f.building && <input type="hidden" name="building" value={f.building} />}
             {f.sort !== "tag" && <input type="hidden" name="sort" value={f.sort} />}
             <input name="q" defaultValue={f.q} placeholder={t("Search {type}: tag, name, serial, room, any field…", { type })} className="input max-w-sm" />
-            <select name="status" defaultValue={f.status} className="input w-auto">
-              <option value="">{t("Active (not retired)")}</option>
-              {ASSET_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {label(s, locale)}
-                </option>
-              ))}
-              <option value="all">{t("All, including retired")}</option>
-            </select>
-            <select name="building" defaultValue={f.building} aria-label={t("Building")} className="input w-auto">
-              <option value="">{t("All buildings")}</option>
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name} ({inBuilding(l.id)})
-                </option>
-              ))}
-              <option value="none">
-                {t("No building")} ({inBuilding(null)})
-              </option>
-            </select>
-            <button className="btn">{t("Filter")}</button>
           </form>
 
-          {/* Tick rows, then print their QR labels or change them all at once. */}
+          {/* Status and building filters as tags: one click filters. */}
+          <div className="mb-4 space-y-2">
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { key: "", text: t("Active (not retired)") },
+                ...ASSET_STATUSES.map((st) => ({ key: st as string, text: label(st, locale) })),
+                { key: "all", text: t("All, including retired") },
+              ].map((o) => filterTag(o.key, f.status === o.key, o.text, { ...f, status: o.key }))}
+            </div>
+            {locations.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {filterTag("", !f.building, t("All buildings"), { ...f, building: "" })}
+                {locations
+                  .filter((l) => inBuilding(l.id) > 0 || f.building === l.id)
+                  .map((l) => filterTag(l.id, f.building === l.id, l.name, { ...f, building: l.id }, inBuilding(l.id)))}
+                {(inBuilding(null) > 0 || f.building === "none") &&
+                  filterTag("none", f.building === "none", t("No building"), { ...f, building: "none" }, inBuilding(null))}
+              </div>
+            )}
+          </div>
+
+          {/* Tick rows, then print their QR labels or delete them. */}
           <form action="/inventory/labels">
             <Section
               title={t(assets.length === 1 ? "{n} item" : "{n} items", { n: `${assets.length}${assets.length === LIMIT ? "+" : ""}` })}
@@ -184,9 +198,9 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
                   <Link href={columnsHref} className="btn">
                     <Columns3 className="size-4" /> {t("Columns")}
                   </Link>
-                  <button className="btn">
+                  <PrintLabelsButton className="btn">
                     <Printer className="size-4" /> {t("Print labels")}
-                  </button>
+                  </PrintLabelsButton>
                   <ConfirmButton
                     formAction={deleteAssets}
                     message={t("Delete the selected items permanently, with their history? To keep the history, set their status to Retired instead.")}
@@ -198,58 +212,6 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
                 </div>
               }
             >
-              <div className="flex flex-wrap items-center gap-2 border-b border-line bg-panel-muted px-4 py-3 text-sm">
-                <span className="text-dim">{t("Change selected:")}</span>
-                <select name="bulkStatus" defaultValue="" className="input w-auto" aria-label={t("New status")}>
-                  <option value="">{t("Status…")}</option>
-                  {ASSET_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {label(s, locale)}
-                    </option>
-                  ))}
-                </select>
-                <select name="bulkLocation" defaultValue="" className="input w-auto" aria-label={t("New location")}>
-                  <option value="">{t("Location…")}</option>
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-                <select name="bulkDept" defaultValue="" className="input w-auto" aria-label={t("New department")}>
-                  <option value="">{t("Move to department…")}</option>
-                  {departments.filter((d) => d.id !== dept.id).map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-                {columns.includes("assignedTo") && (
-                  <>
-                    <input name="bulkAssigned" placeholder={t("Assign to…")} className="input w-40" aria-label={t("Assign to")} />
-                    <label className="flex items-center gap-1.5 text-dim">
-                      <input type="checkbox" name="bulkUnassign" /> {t("Unassign")}
-                    </label>
-                  </>
-                )}
-                {settable.length > 0 && (
-                  <>
-                    <select name="bulkField" defaultValue="" className="input w-auto" aria-label={t("Field to set")}>
-                      <option value="">{t("Set field…")}</option>
-                      {settable.map((c) => (
-                        <option key={c} value={c}>
-                          {columnLabel(c, locale)}
-                        </option>
-                      ))}
-                    </select>
-                    <input name="bulkValue" placeholder={t("to (empty clears)")} className="input w-40" aria-label={t("Value")} />
-                  </>
-                )}
-                <button formAction={bulkUpdateAssets} className="btn">
-                  {t("Apply")}
-                </button>
-              </div>
-
               {assets.length === 0 ? (
                 <Empty>
                   {f.q ? (
@@ -296,14 +258,9 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
                               </td>
                             ))}
                             <td>
-                              <Link
-                                href={`/inventory/labels?tag=${encodeURIComponent(a.tag)}&print=1`}
-                                className="text-dim hover:text-fg"
-                                title={t("Print label")}
-                                aria-label={t("Print label")}
-                              >
+                              <PrintLabelsButton tags={[a.tag]} className="text-dim hover:text-fg" title={t("Print label")}>
                                 <Printer className="size-4" />
-                              </Link>
+                              </PrintLabelsButton>
                             </td>
                           </tr>
                         );

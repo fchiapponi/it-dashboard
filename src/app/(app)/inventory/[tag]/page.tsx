@@ -15,6 +15,7 @@ import { activityText } from "@/i18n/activity";
 import { getI18n } from "@/i18n/server";
 import { addAssetNote, readPrinterDetails, updateAsset } from "../actions";
 import { AssetFields } from "../AssetFields";
+import { PrintLabelsButton } from "../labels/PrintLabelsButton";
 import { InkLevels } from "../InkLevels";
 import { PrinterButton } from "../PrinterButton";
 
@@ -89,9 +90,9 @@ export default async function AssetPage({ params }: PageProps<"/inventory/[tag]"
             <Link href={`/inventory/new?copy=${asset.tag}`} className="btn" title={t("Add a new item pre-filled like this one")}>
               <Copy className="size-4" /> {t("Duplicate")}
             </Link>
-            <Link href={`/inventory/labels?tag=${asset.tag}`} className="btn">
+            <PrintLabelsButton tags={[asset.tag]} className="btn">
               <Printer className="size-4" /> {t("Print label")}
-            </Link>
+            </PrintLabelsButton>
             {reportButton}
           </>
         }

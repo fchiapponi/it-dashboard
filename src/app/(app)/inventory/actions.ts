@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { columnLabel, defaultColumns, DEVICE_FIELDS, extraLabel, FIELD_COLUMNS, isDeviceField, isReadFromDevice, isPrinter, parseExtra, PRINTER_COLUMNS, stringifyExtra } from "@/lib/assets";
+import { defaultColumns, DEVICE_FIELDS, extraLabel, FIELD_COLUMNS, isReadFromDevice, isPrinter, parseExtra, PRINTER_COLUMNS, stringifyExtra } from "@/lib/assets";
 import { assert, isAgentOf, requireUser } from "@/lib/auth";
 import { ASSET_STATUSES, fromLocalInput, int, label, oneOf, req, str } from "@/lib/format";
 import { ipField } from "@/lib/printerSnmp";
@@ -101,67 +101,6 @@ export async function addAssetNote(assetId: string, form: FormData) {
   revalidatePath(`/inventory/${asset.tag}`);
 }
 
-/** Applies the same change to every ticked asset in the inventory list. */
-export async function bulkUpdateAssets(form: FormData) {
-  const user = await requireUser();
-  const tags = form.getAll("tag").map(String);
-  const status = str(form, "bulkStatus");
-  const locationId = str(form, "bulkLocation");
-  const departmentId = str(form, "bulkDept");
-  const assignedTo = str(form, "bulkAssigned");
-  const unassign = form.get("bulkUnassign") === "on";
-  const field = str(form, "bulkField");
-  const value = str(form, "bulkValue");
-  if (!tags.length) return;
-
-  const data: { status?: string; locationId?: string | null; departmentId?: string; assignedTo?: string | null } = {};
-  const changes: string[] = [];
-  if (status) {
-    data.status = oneOf(status, ASSET_STATUSES, "in_use");
-    changes.push(`changed status to ${label(data.status)}`);
-  }
-  if (locationId) {
-    const loc = await prisma.location.findUniqueOrThrow({ where: { id: locationId } });
-    data.locationId = loc.id;
-    changes.push(`moved to ${loc.name}`);
-  }
-  if (departmentId) {
-    assert(isAgentOf(user, departmentId));
-    data.departmentId = departmentId;
-    changes.push("changed department");
-  }
-  if (unassign) {
-    data.assignedTo = null;
-    changes.push("returned (unassigned)");
-  } else if (assignedTo) {
-    data.assignedTo = assignedTo;
-    changes.push(`assigned to ${assignedTo}`);
-  }
-  // "Set field…": one text column (or custom field) to the same value; empty clears it.
-  const custom = field ? extraLabel(field) : null;
-  const textField = field && (TEXT_FIELDS as readonly string[]).includes(field) ? (field as (typeof TEXT_FIELDS)[number]) : null;
-  if (custom || textField) changes.push(value ? `set ${columnLabel(field!)} to ${value}` : `cleared ${columnLabel(field!)}`);
-  if (!changes.length) return;
-
-  const assets = await prisma.asset.findMany({ where: { tag: { in: tags } } });
-  for (const a of assets) assert(isAgentOf(user, a.departmentId));
-  await prisma.$transaction(
-    assets.map((a) =>
-      prisma.asset.update({
-        where: { id: a.id },
-        data: {
-          ...data,
-          ...(textField && (value || textField !== "name") && !(isDeviceField(textField) && isReadFromDevice(a)) ? { [textField]: value } : {}),
-          ...(custom ? { extra: stringifyExtra({ ...parseExtra(a.extra), [custom]: value ?? "" }) } : {}),
-          activity: { create: { actorId: user.id, body: `${changes.join(", ")} (bulk edit)` } },
-        },
-      }),
-    ),
-  );
-  revalidatePath("/inventory");
-}
-
-const TEXT_FIELDS = ["name", "manufacturer", "model", "serialNumber", "assignedTo", "notes"] as const;
 /** Permanently removes the ticked assets (retiring is usually the better choice). */
 export async function deleteAssets(form: FormData) {
   const user = await requireUser();
@@ -221,6 +160,33 @@ export async function createList(form: FormData) {
   });
   revalidatePath("/inventory");
   redirect(`/inventory?dept=${dept.slug}&type=${encodeURIComponent(type)}`);
+}
+
+/**
+ * Renames a department's list: every item of it gets the new type, and the
+ * list's columns go with it. Renaming onto an existing list merges the two,
+ * keeping that list's columns.
+ */
+export async function renameList(form: FormData) {
+  const user = await requireUser();
+  const departmentId = req(form, "departmentId");
+  assert(isAgentOf(user, departmentId));
+  const from = req(form, "from");
+  const to = req(form, "type");
+  const dept = await prisma.department.findUniqueOrThrow({ where: { id: departmentId } });
+
+  if (to !== from) {
+    const [list, target] = await Promise.all([
+      prisma.assetList.findUnique({ where: { departmentId_type: { departmentId, type: from } } }),
+      prisma.assetList.findUnique({ where: { departmentId_type: { departmentId, type: to } } }),
+    ]);
+    await prisma.$transaction([
+      prisma.asset.updateMany({ where: { departmentId, type: from }, data: { type: to } }),
+      ...(list ? [target ? prisma.assetList.delete({ where: { id: list.id } }) : prisma.assetList.update({ where: { id: list.id }, data: { type: to } })] : []),
+    ]);
+  }
+  revalidatePath("/inventory");
+  redirect(`/inventory?dept=${dept.slug}&type=${encodeURIComponent(to)}`);
 }
 
 // ---------------------------------------------------------------- printers

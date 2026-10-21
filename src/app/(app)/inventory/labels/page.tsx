@@ -53,8 +53,9 @@ const ROLLS = {
 
 /**
  * Printable QR labels for the assets passed as ?tag=…&tag=…, as an A4 sheet or
- * for a label printer (?format=a4|ql|pt, else the last one used). ?print=1 opens
- * the print dialog straight away.
+ * for a label printer (?format=a4|ql|pt). Without a format it asks for one
+ * first, the last one used highlighted. ?print=1 opens the print dialog once
+ * the format is chosen.
  */
 export default async function LabelsPage({ searchParams }: PageProps<"/inventory/labels">) {
   const user = await requireUser();
@@ -63,22 +64,42 @@ export default async function LabelsPage({ searchParams }: PageProps<"/inventory
   const params = await searchParams;
   const raw = params.tag;
   const tags = (Array.isArray(raw) ? raw : raw ? [raw] : []).map((tag) => tag.toUpperCase());
-  const format = params.format ?? (await cookies()).get(LABEL_FORMAT_COOKIE)?.value;
+  const chosen = typeof params.format === "string" ? params.format : null;
+  const lastUsed = (await cookies()).get(LABEL_FORMAT_COOKIE)?.value ?? "a4";
+  const format = chosen ?? lastUsed;
   const rollKey = format === "ql" || format === "pt" ? format : null;
   const roll = rollKey && ROLLS[rollKey];
 
   const assets = await prisma.asset.findMany({ where: { tag: { in: tags } }, orderBy: { tag: "asc" } });
   const labels = await Promise.all(assets.map(async (a) => ({ ...a, qr: await assetQrSvg(a.tag) })));
 
-  const href = (format: string) => {
+  const href = (format: string, print = false) => {
     const q = new URLSearchParams(tags.map((tag) => ["tag", tag]));
     q.set("format", format);
+    if (print) q.set("print", "1");
     return `/inventory/labels?${q}`;
   };
 
+  if (!chosen && labels.length > 0) {
+    const formats = [{ key: "a4", name: t("A4 sheet") }, ...Object.entries(ROLLS).map(([key, r]) => ({ key, name: r.name }))];
+    return (
+      <div className="mx-auto max-w-xl">
+        <h1 className="mb-1 text-2xl font-semibold">{t(labels.length === 1 ? "{n} label" : "{n} labels", { n: labels.length })}</h1>
+        <p className="mb-6 text-sm text-dim">{t("Choose the label format to print on.")}</p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {formats.map((f) => (
+            <Link key={f.key} href={href(f.key, true)} autoFocus={f.key === lastUsed} className={f.key === lastUsed ? "btn btn-primary justify-center" : "btn justify-center"}>
+              {f.name}
+            </Link>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
-      <LabelPrint format={rollKey ?? "a4"} print={params.print === "1" && labels.length > 0} />
+      <LabelPrint format={rollKey ?? "a4"} print={!!chosen && params.print === "1" && labels.length > 0} />
       <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">
           {t(labels.length === 1 ? "{n} label" : "{n} labels", { n: labels.length })}
