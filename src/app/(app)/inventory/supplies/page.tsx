@@ -5,6 +5,7 @@ import { isAgent, isAgentOf, requireUser } from "@/lib/auth";
 import { fmtRelative } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { managedDepartments } from "@/lib/tickets";
+import { getI18n } from "@/i18n/server";
 import { adjustStock, createSupply, deleteSupply, updateSupply } from "../actions";
 import { InventoryTabs } from "../Tabs";
 
@@ -12,6 +13,7 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
   const user = await requireUser();
   if (!isAgent(user)) notFound();
   const sp = await searchParams;
+  const { t, locale } = await getI18n();
   const editId = typeof sp.edit === "string" ? sp.edit : null;
 
   const [supplies, departments, locations, movements] = await Promise.all([
@@ -34,23 +36,23 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
 
   return (
     <>
-      <PageHeader title="Inventory" subtitle="Consumables: toner, cables, spare parts, cleaning products…" />
+      <PageHeader title={t("Inventory")} subtitle={t("Consumables: toner, cables, spare parts, cleaning products…")} />
       <InventoryTabs active="supplies" lowStock={low.length} />
 
-      <Section title="Stock" className="mb-6">
+      <Section title={t("Stock")} className="mb-6">
         {sorted.length === 0 ? (
-          <Empty>No supplies yet — add the first one below.</Empty>
+          <Empty>{t("No supplies yet — add the first one below.")}</Empty>
         ) : (
           <TableWrap>
             <table className="table">
               <thead>
                 <tr>
-                  <th>Item</th>
-                  <th>Department</th>
-                  <th>Location</th>
-                  <th className="text-right">In stock</th>
-                  <th className="text-right">Min</th>
-                  <th>Add / remove</th>
+                  <th>{t("Item")}</th>
+                  <th>{t("Department")}</th>
+                  <th>{t("Location")}</th>
+                  <th className="text-right">{t("In stock")}</th>
+                  <th className="text-right">{t("Min")}</th>
+                  <th>{t("Add / remove")}</th>
                   <th />
                 </tr>
               </thead>
@@ -60,19 +62,19 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
                     <tr key={s.id}>
                       <td colSpan={7}>
                         <form action={updateSupply.bind(null, s.id)} className="grid items-end gap-2 sm:grid-cols-6">
-                          <Field label="Name" className="sm:col-span-2">
+                          <Field label={t("Name")} className="sm:col-span-2">
                             <input name="name" required defaultValue={s.name} className="input" />
                           </Field>
-                          <Field label="SKU">
+                          <Field label={t("SKU")}>
                             <input name="sku" defaultValue={s.sku ?? ""} className="input" />
                           </Field>
-                          <Field label="Unit">
+                          <Field label={t("Unit")}>
                             <input name="unit" defaultValue={s.unit} className="input" />
                           </Field>
-                          <Field label="Min qty">
+                          <Field label={t("Min qty")}>
                             <input name="minQuantity" type="number" min={0} defaultValue={s.minQuantity} className="input" />
                           </Field>
-                          <Field label="Location">
+                          <Field label={t("Location")}>
                             <select name="locationId" defaultValue={s.locationId ?? ""} className="input">
                               <option value="">—</option>
                               {locations.map((l) => (
@@ -83,12 +85,12 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
                             </select>
                           </Field>
                           <div className="flex gap-2 sm:col-span-6">
-                            <button className="btn btn-primary">Save</button>
+                            <button className="btn btn-primary">{t("Save")}</button>
                             <Link href="/inventory/supplies" className="btn">
-                              Cancel
+                              {t("Cancel")}
                             </Link>
                             <button formAction={deleteSupply.bind(null, s.id)} className="btn btn-danger ml-auto">
-                              Delete item
+                              {t("Delete item")}
                             </button>
                           </div>
                         </form>
@@ -111,13 +113,13 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
                       <td>
                         <form action={adjustStock.bind(null, s.id)} className="flex gap-1.5">
                           <input name="delta" type="number" required placeholder="+10 / -2" className="input w-24" />
-                          <input name="reason" placeholder="reason" className="input w-32" />
-                          <button className="btn">OK</button>
+                          <input name="reason" placeholder={t("reason")} className="input w-32" />
+                          <button className="btn">{t("OK")}</button>
                         </form>
                       </td>
                       <td>
                         <Link href={`/inventory/supplies?edit=${s.id}`} className="link text-xs">
-                          Edit
+                          {t("Edit")}
                         </Link>
                       </td>
                     </tr>
@@ -130,12 +132,12 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
       </Section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Section title="Add supply item">
+        <Section title={t("Add supply item")}>
           <form action={createSupply} className="grid gap-3 p-4 sm:grid-cols-2">
-            <Field label="Name" className="sm:col-span-2">
-              <input name="name" required placeholder="e.g. HP 508A toner – black" className="input" />
+            <Field label={t("Name")} className="sm:col-span-2">
+              <input name="name" required placeholder={t("e.g. HP 508A toner – black")} className="input" />
             </Field>
-            <Field label="Department">
+            <Field label={t("Department")}>
               <select name="departmentId" className="input">
                 {departments.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -144,7 +146,7 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
                 ))}
               </select>
             </Field>
-            <Field label="Location">
+            <Field label={t("Location")}>
               <select name="locationId" className="input">
                 <option value="">—</option>
                 {locations.map((l) => (
@@ -154,27 +156,27 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
                 ))}
               </select>
             </Field>
-            <Field label="SKU / part number">
+            <Field label={t("SKU / part number")}>
               <input name="sku" className="input" />
             </Field>
-            <Field label="Unit">
+            <Field label={t("Unit")}>
               <input name="unit" defaultValue="pcs" className="input" />
             </Field>
-            <Field label="Current quantity">
+            <Field label={t("Current quantity")}>
               <input name="quantity" type="number" min={0} defaultValue={0} className="input" />
             </Field>
-            <Field label="Warn at or below">
+            <Field label={t("Warn at or below")}>
               <input name="minQuantity" type="number" min={0} defaultValue={2} className="input" />
             </Field>
             <div className="sm:col-span-2">
-              <button className="btn btn-primary">Add item</button>
+              <button className="btn btn-primary">{t("Add item")}</button>
             </div>
           </form>
         </Section>
 
-        <Section title="Recent movements">
+        <Section title={t("Recent movements")}>
           {movements.length === 0 ? (
-            <Empty>No stock changes yet.</Empty>
+            <Empty>{t("No stock changes yet.")}</Empty>
           ) : (
             <ul className="divide-y divide-line">
               {movements.map((m) => (
@@ -188,10 +190,10 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
                     </div>
                     <div className="truncate text-xs text-dim">
                       {m.actor?.name ?? "—"}
-                      {m.ticket ? ` · ticket #${m.ticket.number}` : m.reason ? ` · ${m.reason}` : ""}
+                      {m.ticket ? ` · ${t("ticket #{number}", { number: m.ticket.number })}` : m.reason ? ` · ${m.reason}` : ""}
                     </div>
                   </div>
-                  <span className="text-xs whitespace-nowrap text-dim">{fmtRelative(m.createdAt)}</span>
+                  <span className="text-xs whitespace-nowrap text-dim">{fmtRelative(m.createdAt, locale)}</span>
                 </li>
               ))}
             </ul>

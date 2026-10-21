@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import type { DiningDay } from "@/lib/dining";
 import { calendarDay, DAY_KINDS, dayKey, parseDay, weekday, type CalendarDay, type DayKind } from "@/lib/schoolCalendar";
 import { Section, TableWrap } from "@/components/ui";
+import { INTL, type Message } from "@/i18n";
+import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 import { Donut, type Slice } from "./Donut";
 import { StackedBars, type Bucket, type Series } from "./StackedBars";
@@ -19,11 +21,28 @@ const HALLS: (Series & { id: HallId })[] = [
   { id: "had", name: "Hadsall", color: "var(--hall-2)" },
   { id: "foc", name: "Focolare", color: "var(--hall-3)" },
 ];
-const MEALS: Record<Meal, string> = { breakfast: "Breakfast", brunch: "Brunch", lunch: "Lunch", dinner: "Dinner" };
+const MEALS: Record<Meal, Message> = { breakfast: "Breakfast", brunch: "Brunch", lunch: "Lunch", dinner: "Dinner" };
+/** The meal as a unit under a number ("1,234 lunch"), and in "… served". */
+const MEAL_WORDS: Record<Meal | "all", Message> = { all: "meals", breakfast: "breakfast", brunch: "brunch", lunch: "lunch", dinner: "dinner" };
+const MEALS_SERVED: Record<Meal | "all", Message> = {
+  all: "Meals served",
+  breakfast: "Breakfasts served",
+  brunch: "Brunches served",
+  lunch: "Lunches served",
+  dinner: "Dinners served",
+};
 const MEAL_IDS = Object.keys(MEALS) as Meal[];
-const DAY_FILTERS: Record<DayFilter, string> = { all: "All", weekdays: "Weekdays", weekends: "Weekends" };
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const WEEKDAY_NAMES = ["Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays", "Sundays"];
+const DAY_FILTERS: Record<DayFilter, Message> = { all: "All", weekdays: "Weekdays", weekends: "Weekends" };
+const WEEKDAYS: Message[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAY_AVERAGES: Message[] = [
+  "Average on Mondays",
+  "Average on Tuesdays",
+  "Average on Wednesdays",
+  "Average on Thursdays",
+  "Average on Fridays",
+  "Average on Saturdays",
+  "Average on Sundays",
+];
 
 /** How often an open page asks the server for the latest read of the sheet. */
 const POLL_MS = 5 * 60_000;
@@ -33,7 +52,7 @@ const MEAL_COLORS: Record<Meal, string> = { breakfast: "var(--meal-1)", brunch: 
 
 const ALL_KINDS = Object.keys(DAY_KINDS) as DayKind[];
 /** One-click choices in the school calendar picker. */
-const KIND_PRESETS: { label: string; kinds: DayKind[] }[] = [
+const KIND_PRESETS: { label: Message; kinds: DayKind[] }[] = [
   { label: "Every kind of day", kinds: ALL_KINDS },
   { label: "Without holidays", kinds: ALL_KINDS.filter((k) => k !== "holiday") },
   { label: "School in session", kinds: ["classes", "weekend", "special", "orientation"] },
@@ -41,8 +60,6 @@ const KIND_PRESETS: { label: string; kinds: DayKind[] }[] = [
 
 type Day = DiningDay & { d: Date; wd: number; cal: CalendarDay };
 
-const fmt = (n: number | null | undefined) => (n == null ? "–" : Math.round(n).toLocaleString("en-GB"));
-const fmtDay = (d: Date, o: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" }) => d.toLocaleDateString("en-GB", o);
 const titleCase = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
 
 function hallMeal(day: DiningDay, hall: HallId, meal: Meal): number | null {
@@ -52,9 +69,12 @@ function hallMeal(day: DiningDay, hall: HallId, meal: Meal): number | null {
 
 export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
   const router = useRouter();
+  const { t, locale } = useI18n();
+  const fmt = (n: number | null | undefined) => (n == null ? "–" : Math.round(n).toLocaleString(INTL[locale]));
+  const fmtDay = (d: Date, o: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" }) => d.toLocaleDateString(INTL[locale], o);
   useEffect(() => {
-    const t = setInterval(() => router.refresh(), POLL_MS);
-    return () => clearInterval(t);
+    const timer = setInterval(() => router.refresh(), POLL_MS);
+    return () => clearInterval(timer);
   }, [router]);
 
   const days = useMemo<Day[]>(
@@ -71,11 +91,11 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
   const periods = useMemo(() => {
     const years = [...new Set(days.map((d) => d.d.getFullYear()))].sort((a, b) => b - a);
     const list: { key: string; label: string; from: Date; to: Date }[] = [];
-    for (const y of years) list.push({ key: `y${y}`, label: `All of ${y}`, from: new Date(y, 0, 1), to: new Date(y, 11, 31) });
+    for (const y of years) list.push({ key: `y${y}`, label: t("All of {year}", { year: y }), from: new Date(y, 0, 1), to: new Date(y, 11, 31) });
     for (const n of [30, 90]) {
       const from = new Date(lastDate);
       from.setDate(from.getDate() - n + 1);
-      list.push({ key: `last${n}`, label: `Last ${n} days`, from, to: lastDate });
+      list.push({ key: `last${n}`, label: t("Last {n} days", { n }), from, to: lastDate });
     }
     if (days.length) {
       // Every month from the first recorded one to the last.
@@ -90,9 +110,9 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
       }
     }
     return list;
-    // lastDate is derived from days
+    // lastDate is derived from days; fmtDay and t only change with locale
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [days]);
+  }, [days, locale]);
 
   const [periodKey, setPeriodKey] = useState(() => periods[0]?.key ?? "");
   const [kinds, setKinds] = useState<DayKind[]>(ALL_KINDS);
@@ -124,7 +144,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
   const period = periodKey === "custom" && customPeriod ? customPeriod : (periods.find((p) => p.key === periodKey) ?? periods[0]);
   const halls = HALLS.filter((h) => hallIds.includes(h.id));
   const meals: Meal[] = meal === "all" ? MEAL_IDS : [meal];
-  const mealWord = meal === "all" ? "meals" : MEALS[meal].toLowerCase();
+  const mealWord = t(MEAL_WORDS[meal]);
 
   const passes = (d: { wd: number; kind: DayKind | null }) =>
     !(dayFilter === "weekdays" && d.wd >= 5) &&
@@ -211,7 +231,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
   let trend: Bucket[];
   let byMonth: Bucket[] = [];
   if (months.size > 1) {
-    trendTitle = "Total per month";
+    trendTitle = t("Total per month");
     const by = new Map<string, Day[]>();
     for (const d of selected) {
       const k = `${d.d.getFullYear()}-${String(d.d.getMonth()).padStart(2, "0")}`;
@@ -231,7 +251,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
         key: k,
         label: fmtDay(group[0].d, { month: "short" }),
         tick: true,
-        title: `${fmtDay(group[0].d, { month: "long", year: "numeric" })} · average of ${n} days`,
+        title: `${fmtDay(group[0].d, { month: "long", year: "numeric" })} · ${t("average of {n} days", { n })}`,
       });
     });
     const last = selected[selected.length - 1];
@@ -240,11 +260,11 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
       last.d.getTime() === lastDate.getTime() &&
       new Date(lastDate.getFullYear(), lastDate.getMonth() + 1, 0).getDate() !== lastDate.getDate()
     ) {
-      trendNote = `${fmtDay(lastDate, { month: "long" })} so far`;
+      trendNote = t("{month} so far", { month: fmtDay(lastDate, { month: "long" }) });
     }
   } else {
-    trendTitle = "Total per week";
-    trendNote = "Mon–Sun weeks";
+    trendTitle = t("Total per week");
+    trendNote = t("Mon–Sun weeks");
     const by = new Map<string, { start: Date; group: Day[] }>();
     for (const d of selected) {
       const start = new Date(d.d);
@@ -256,7 +276,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
     trend = [...by].map(([k, { start, group }]) => {
       const end = new Date(start);
       end.setDate(end.getDate() + 6);
-      return bucket(group, { key: k, label: fmtDay(start), tick: true, title: `Week ${fmtDay(start)} – ${fmtDay(end)}` });
+      return bucket(group, { key: k, label: fmtDay(start), tick: true, title: t("Week {from} – {to}", { from: fmtDay(start), to: fmtDay(end) }) });
     });
   }
 
@@ -266,7 +286,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
   const byWeekday = shownWeekdays.map((i) =>
     average(
       selected.filter((d) => d.wd === i),
-      { key: String(i), label: WEEKDAYS[i], tick: true, title: `Average on ${WEEKDAY_NAMES[i]}` },
+      { key: String(i), label: t(WEEKDAYS[i]), tick: true, title: t(WEEKDAY_AVERAGES[i]) },
     ),
   );
 
@@ -276,7 +296,12 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
     .map((k) => {
       const group = selected.filter((d) => d.cal.kind === k);
       const n = group.filter((d) => dayTotal(d)).length;
-      return average(group, { key: k, label: DAY_KINDS[k].short, tick: true, title: `${DAY_KINDS[k].name} · average of ${n} days` });
+      return average(group, {
+        key: k,
+        label: t(DAY_KINDS[k].short),
+        tick: true,
+        title: `${t(DAY_KINDS[k].name)} · ${t("average of {n} days", { n })}`,
+      });
     });
 
   // -------------------------------------------------------------- donuts
@@ -286,34 +311,34 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
     color: h.color,
     value: selected.reduce((a, d) => a + (hallVal(d, h.id) ?? 0), 0),
   }));
-  const mealSlices: Slice[] = perMeal.map((p) => ({ id: p.m, name: MEALS[p.m], color: MEAL_COLORS[p.m], value: p.s }));
+  const mealSlices: Slice[] = perMeal.map((p) => ({ id: p.m, name: t(MEALS[p.m]), color: MEAL_COLORS[p.m], value: p.s }));
   const kindSlices: Slice[] = (Object.keys(DAY_KINDS) as DayKind[]).map((k) => {
     const group = served.filter((x) => x.d.cal.kind === k);
     return {
       id: k,
-      name: DAY_KINDS[k].name,
+      name: t(DAY_KINDS[k].name),
       color: DAY_KINDS[k].color,
       value: group.reduce((a, x) => a + x.t, 0),
-      note: `${group.length} days with service`,
+      note: t("{n} days with service", { n: group.length }),
     };
   });
 
   // ----------------------------------------------------------- daily log
   type Col = { key: string; label: string; group?: string; left?: boolean; total?: boolean };
   const cols: Col[] = [
-    { key: "date", label: "Date", left: true },
-    { key: "kind", label: "Day", group: "Calendar", left: true },
+    { key: "date", label: t("Date"), left: true },
+    { key: "kind", label: t("Day"), group: t("Calendar"), left: true },
   ];
   for (const m of meals) {
     const servingHalls = halls.filter((h) => h.id === "dn" || (m !== "breakfast" && m !== "brunch")); // breakfast and brunch are De Nobili only
-    for (const h of servingHalls) cols.push({ key: `${h.id}.${m}`, label: h.name, group: MEALS[m] });
-    if (servingHalls.length > 1) cols.push({ key: `total.${m}`, label: "Total", group: MEALS[m], total: true });
+    for (const h of servingHalls) cols.push({ key: `${h.id}.${m}`, label: h.name, group: t(MEALS[m]) });
+    if (servingHalls.length > 1) cols.push({ key: `total.${m}`, label: t("Total"), group: t(MEALS[m]), total: true });
   }
-  cols.push({ key: "tag", label: "Kitchen note", left: true }, { key: "notes", label: "Calendar notes", group: "Calendar", left: true });
+  cols.push({ key: "tag", label: t("Kitchen note"), left: true }, { key: "notes", label: t("Calendar notes"), group: t("Calendar"), left: true });
 
   const cell = (d: Day, key: string): string | number | null => {
     if (key === "date") return d.date;
-    if (key === "kind") return d.cal.kind ? DAY_KINDS[d.cal.kind].name : "";
+    if (key === "kind") return d.cal.kind ? t(DAY_KINDS[d.cal.kind].name) : "";
     if (key === "tag") return d.tag;
     if (key === "notes") return d.cal.notes.join(" · ");
     const [h, m] = key.split(".") as [HallId | "total", Meal];
@@ -335,7 +360,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
         d.date.includes(q) ||
         d.tag.toLowerCase().includes(q) ||
         d.cal.notes.join(" ").toLowerCase().includes(q) ||
-        (d.cal.kind && DAY_KINDS[d.cal.kind].name.toLowerCase().includes(q)) ||
+        (d.cal.kind && t(DAY_KINDS[d.cal.kind].name).toLowerCase().includes(q)) ||
         fmtDay(d.d, { weekday: "long", day: "numeric", month: "long" }).toLowerCase().includes(q),
     )
     .sort((a, b) => {
@@ -353,7 +378,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
       {/* Filters scope everything below them. */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
         <label className="flex items-center gap-2">
-          <span className="text-xs font-medium text-dim">Period</span>
+          <span className="text-xs font-medium text-dim">{t("Period")}</span>
           <select
             className="input w-auto py-1.5"
             value={periodKey === "custom" ? "custom" : period?.key}
@@ -364,22 +389,22 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
                 {p.label}
               </option>
             ))}
-            <option value="custom">Custom range…</option>
+            <option value="custom">{t("Custom range…")}</option>
           </select>
         </label>
         {periodKey === "custom" && (
           <div className="flex items-center gap-2">
             <input
               type="date"
-              aria-label="From"
+              aria-label={t("From")}
               className="input w-auto py-1.5"
               value={custom.from}
               onChange={(e) => setCustom((c) => ({ ...c, from: e.target.value }))}
             />
-            <span className="text-xs text-dim">to</span>
+            <span className="text-xs text-dim">{t("to")}</span>
             <input
               type="date"
-              aria-label="To"
+              aria-label={t("To")}
               className="input w-auto py-1.5"
               value={custom.to}
               onChange={(e) => setCustom((c) => ({ ...c, to: e.target.value }))}
@@ -387,10 +412,10 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
           </div>
         )}
         <KindPicker value={kinds} onChange={setKinds} />
-        <Segmented label="Days" value={dayFilter} options={DAY_FILTERS} onChange={setDayFilter} />
-        <Segmented label="Meal" value={meal} options={{ all: "All", ...MEALS }} onChange={setMeal} />
+        <Segmented label={t("Days")} value={dayFilter} options={DAY_FILTERS} onChange={setDayFilter} />
+        <Segmented label={t("Meal")} value={meal} options={{ all: "All", ...MEALS }} onChange={setMeal} />
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-dim">Dining hall</span>
+          <span className="text-xs font-medium text-dim">{t("Dining hall")}</span>
           {HALLS.map((h) => {
             const on = hallIds.includes(h.id);
             return (
@@ -414,55 +439,62 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile
-          label={meal === "all" ? "Meals served" : `${MEALS[meal]}s served`}
+          label={t(MEALS_SERVED[meal])}
           value={fmt(sum)}
           note={
             meal === "all"
               ? perMeal
                   .filter((p) => p.s)
-                  .map((p) => `${MEALS[p.m]} ${fmt(p.s)}`)
+                  .map((p) => `${t(MEALS[p.m])} ${fmt(p.s)}`)
                   .join(" · ")
-              : `${served.length} days with service`
+              : t("{n} days with service", { n: served.length })
           }
         />
         {dayFilter === "all" && allKinds ? (
           <Tile
-            label="Average weekday"
+            label={t("Average weekday")}
             value={fmt(weekdaysServed.length ? weekdaysServed.reduce((a, x) => a + x.t, 0) / weekdaysServed.length : null)}
-            note={`Mon–Fri, ${weekdaysServed.length} days · all days ${fmt(served.length ? sum / served.length : null)}`}
+            note={t("Mon–Fri, {n} days · all days {average}", { n: weekdaysServed.length, average: fmt(served.length ? sum / served.length : null) })}
           />
         ) : (
-          <Tile label="Average per day" value={fmt(served.length ? sum / served.length : null)} note={`${served.length} days with service`} />
+          <Tile
+            label={t("Average per day")}
+            value={fmt(served.length ? sum / served.length : null)}
+            note={t("{n} days with service", { n: served.length })}
+          />
         )}
         {meal === "brunch" ? (
           <Tile
-            label="Brunches"
+            label={t("Brunches")}
             value={String(served.length)}
-            note={`${served.filter((x) => x.d.wd === 5).length} on Saturday · ${served.filter((x) => x.d.wd === 6).length} on Sunday`}
+            note={t("{sat} on Saturday · {sun} on Sunday", {
+              sat: served.filter((x) => x.d.wd === 5).length,
+              sun: served.filter((x) => x.d.wd === 6).length,
+            })}
           />
         ) : (
           <Tile
-            label="Average weekend day"
+            label={t("Average weekend day")}
             value={fmt(weekendsServed.length ? weekendsServed.reduce((a, x) => a + x.t, 0) / weekendsServed.length : null)}
-            note={`Sat–Sun, ${weekendsServed.length} days with service`}
+            note={t("Sat–Sun, {n} days with service", { n: weekendsServed.length })}
           />
         )}
         <Tile
-          label="Average per month"
+          label={t("Average per month")}
           value={fmt(monthsServed ? sum / monthsServed : null)}
-          note={`${monthsServed} ${monthsServed === 1 ? "month" : "months"} with service`}
+          note={t(monthsServed === 1 ? "{n} month with service" : "{n} months with service", { n: monthsServed })}
         />
       </div>
 
       <Section
-        title={`${meal === "all" ? "Meals" : MEALS[meal]} per day`}
+        title={t("{meal} per day", { meal: t(meal === "all" ? "Meals" : MEALS[meal]) })}
         actions={
           <Legend>
             {halls.map((h) => (
               <LegendItem key={h.id} color={h.color} label={h.name} />
             ))}
             <span className="inline-flex items-center gap-1.5">
-              <i className="size-[7px] rounded-full bg-[var(--dining-event)]" /> Kitchen note
+              <i className="size-[7px] rounded-full bg-[var(--dining-event)]" /> {t("Kitchen note")}
             </span>
           </Legend>
         }
@@ -470,35 +502,38 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
         <div className="space-y-3 p-4">
           <StackedBars buckets={daily} series={halls} height={440} minStep={9} showEvents showCalendar />
           <Legend>
-            <span className="text-[11px] font-semibold tracking-wide text-dim uppercase">School calendar</span>
+            <span className="text-[11px] font-semibold tracking-wide text-dim uppercase">{t("School calendar")}</span>
             {(Object.keys(DAY_KINDS) as DayKind[])
               .filter((k) => kindsPresent.has(k))
               .map((k) => (
-                <LegendItem key={k} color={DAY_KINDS[k].color} label={DAY_KINDS[k].name} wide />
+                <LegendItem key={k} color={DAY_KINDS[k].color} label={t(DAY_KINDS[k].name)} wide />
               ))}
           </Legend>
         </div>
       </Section>
 
       <div className="grid gap-6 md:grid-cols-3">
-        <Section title="Share by dining hall" actions={<span className="text-xs text-dim">{mealWord}</span>}>
+        <Section title={t("Share by dining hall")} actions={<span className="text-xs text-dim">{mealWord}</span>}>
           {halls.length > 1 ? (
             <Donut slices={hallSlices} unit={mealWord} />
           ) : (
-            <div className="px-4 py-10 text-center text-sm text-dim">Pick more than one dining hall to compare them.</div>
+            <div className="px-4 py-10 text-center text-sm text-dim">{t("Pick more than one dining hall to compare them.")}</div>
           )}
         </Section>
         <Section
-          title="Share by meal"
-          actions={<span className="text-xs text-dim">{halls.length === 3 ? "all halls" : halls.map((h) => h.name).join(" + ")}</span>}
+          title={t("Share by meal")}
+          actions={<span className="text-xs text-dim">{halls.length === 3 ? t("all halls") : halls.map((h) => h.name).join(" + ")}</span>}
         >
           {meal === "all" ? (
-            <Donut slices={mealSlices} unit="meals" />
+            <Donut slices={mealSlices} unit={t("meals")} />
           ) : (
-            <div className="px-4 py-10 text-center text-sm text-dim">Set Meal to All to see the split.</div>
+            <div className="px-4 py-10 text-center text-sm text-dim">{t("Set Meal to All to see the split.")}</div>
           )}
         </Section>
-        <Section title="Share by kind of day" actions={<span className="text-xs text-dim">{mealWord}, from the school calendar</span>}>
+        <Section
+          title={t("Share by kind of day")}
+          actions={<span className="text-xs text-dim">{t("{unit}, from the school calendar", { unit: mealWord })}</span>}
+        >
           <Donut slices={kindSlices} unit={mealWord} />
         </Section>
       </div>
@@ -510,7 +545,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
           </div>
         </Section>
         {byMonth.length > 0 && (
-          <Section title="Average day by month" actions={<span className="text-xs text-dim">days with service</span>}>
+          <Section title={t("Average day by month")} actions={<span className="text-xs text-dim">{t("days with service")}</span>}>
             <div className="p-4">
               <StackedBars buckets={byMonth} series={halls} height={280} minStep={56} showTotals />
             </div>
@@ -519,12 +554,12 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Section title="Average by weekday" actions={<span className="text-xs text-dim">days with service</span>}>
+        <Section title={t("Average by weekday")} actions={<span className="text-xs text-dim">{t("days with service")}</span>}>
           <div className="p-4">
             <StackedBars buckets={byWeekday} series={halls} height={240} minStep={52} startAtEnd={false} showTotals />
           </div>
         </Section>
-        <Section title="Average by kind of day" actions={<span className="text-xs text-dim">from the school calendar</span>}>
+        <Section title={t("Average by kind of day")} actions={<span className="text-xs text-dim">{t("from the school calendar")}</span>}>
           <div className="p-4">
             <StackedBars buckets={byKind} series={halls} height={240} minStep={64} startAtEnd={false} showTotals />
           </div>
@@ -532,13 +567,13 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
       </div>
 
       <Section
-        title="Daily log"
+        title={t("Daily log")}
         actions={
           <input
             type="search"
             className="input w-56 py-1.5"
-            placeholder="Search date, note, holiday…"
-            aria-label="Search the daily log"
+            placeholder={t("Search date, note, holiday…")}
+            aria-label={t("Search the daily log")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -576,7 +611,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
                 {logRows.length === 0 && (
                   <tr>
                     <td colSpan={cols.length} className="text-dim">
-                      No days match the search.
+                      {t("No days match the search.")}
                     </td>
                   </tr>
                 )}
@@ -595,7 +630,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
                             {d.cal.kind && (
                               <span className="inline-flex items-center gap-1.5">
                                 <i className="h-1.5 w-3.5 rounded-sm" style={{ background: DAY_KINDS[d.cal.kind].color }} />
-                                {DAY_KINDS[d.cal.kind].name}
+                                {t(DAY_KINDS[d.cal.kind].name)}
                               </span>
                             )}
                           </td>
@@ -632,6 +667,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
 
 /** Dropdown of checkboxes, one per kind of school-calendar day, plus presets. */
 function KindPicker({ value, onChange }: { value: DayKind[]; onChange: (v: DayKind[]) => void }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -649,12 +685,18 @@ function KindPicker({ value, onChange }: { value: DayKind[]; onChange: (v: DayKi
 
   const same = (a: DayKind[], b: DayKind[]) => a.length === b.length && a.every((k) => b.includes(k));
   const preset = KIND_PRESETS.find((p) => same(p.kinds, value));
-  const summary = preset?.label ?? (value.length === 1 ? DAY_KINDS[value[0]].name : value.length === 0 ? "No days" : `${value.length} kinds of day`);
+  const summary = preset
+    ? t(preset.label)
+    : value.length === 1
+      ? t(DAY_KINDS[value[0]].name)
+      : value.length === 0
+        ? t("No days")
+        : t("{n} kinds of day", { n: value.length });
   const toggle = (k: DayKind) => onChange(value.includes(k) ? value.filter((x) => x !== k) : ALL_KINDS.filter((x) => x === k || value.includes(x)));
 
   return (
     <div ref={ref} className="relative flex items-center gap-2">
-      <span className="text-xs font-medium text-dim">School calendar</span>
+      <span className="text-xs font-medium text-dim">{t("School calendar")}</span>
       <button
         type="button"
         aria-haspopup="true"
@@ -674,7 +716,7 @@ function KindPicker({ value, onChange }: { value: DayKind[]; onChange: (v: DayKi
               onClick={() => onChange(p.kinds)}
               className={cn("rounded-md px-2 py-1.5 text-left hover:bg-panel-muted", preset === p && "font-medium text-accent")}
             >
-              {p.label}
+              {t(p.label)}
             </button>
           ))}
           <div className="my-1 border-t border-line" />
@@ -682,7 +724,7 @@ function KindPicker({ value, onChange }: { value: DayKind[]; onChange: (v: DayKi
             <label key={k} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-panel-muted">
               <input type="checkbox" checked={value.includes(k)} onChange={() => toggle(k)} className="accent-[var(--accent)]" />
               <i className="h-1.5 w-3.5 shrink-0 rounded-sm" style={{ background: DAY_KINDS[k].color }} />
-              {DAY_KINDS[k].name}
+              {t(DAY_KINDS[k].name)}
             </label>
           ))}
         </div>
@@ -699,9 +741,10 @@ function Segmented<T extends string>({
 }: {
   label: string;
   value: T;
-  options: Record<T, string>;
+  options: Record<T, Message>;
   onChange: (v: T) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs font-medium text-dim">{label}</span>
@@ -714,7 +757,7 @@ function Segmented<T extends string>({
             onClick={() => onChange(k)}
             className={cn("rounded-md px-2.5 py-1 text-sm", value === k ? "bg-panel-muted font-medium text-fg" : "text-dim hover:text-fg")}
           >
-            {options[k]}
+            {t(options[k])}
           </button>
         ))}
       </div>

@@ -3,10 +3,12 @@
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
+import { useI18n } from "@/i18n/client";
 
 /** Modal overlay that navigates to `closeHref` on Escape, backdrop click or the close button. */
 export function DialogShell({ closeHref, children }: { closeHref: string; children: ReactNode }) {
   const router = useRouter();
+  const { t } = useI18n();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -26,7 +28,7 @@ export function DialogShell({ closeHref, children }: { closeHref: string; childr
       <div role="dialog" aria-modal="true" className="card relative w-full max-w-2xl shadow-xl">
         <button
           className="btn absolute top-3 right-3 border-0 px-2"
-          title="Close"
+          title={t("Close")}
           onClick={() => router.push(closeHref, { scroll: false })}
         >
           <X className="size-4" />

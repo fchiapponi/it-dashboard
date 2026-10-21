@@ -4,11 +4,13 @@ import { DeptBadge, PageHeader, Stat } from "@/components/ui";
 import { isAgent, isReception, requireUser } from "@/lib/auth";
 import { startOfToday } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { getI18n } from "@/i18n/server";
 import { ACTIVE_STATUSES, lowStockCount } from "@/lib/tickets";
 
 /** Numbers only: each tile links to the list behind it. */
 export default async function Dashboard() {
   const user = await requireUser();
+  const { t } = await getI18n();
   const agent = isAgent(user);
   const reception = isReception(user);
   const today = startOfToday();
@@ -52,20 +54,20 @@ export default async function Dashboard() {
   return (
     <>
       <PageHeader
-        title={`Hello, ${firstName}`}
-        subtitle="What needs attention today"
+        title={t("Hello, {name}", { name: firstName })}
+        subtitle={t("What needs attention today")}
         actions={
           <Link href="/tickets/new" className="btn btn-primary">
-            <Plus className="size-4" /> New ticket
+            <Plus className="size-4" /> {t("New ticket")}
           </Link>
         }
       />
 
       <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {agent && <Stat label="Assigned to me" value={assignedToMe} href="/tickets?view=assigned" />}
-        <Stat label="My open requests" value={myOpen} href="/tickets?view=mine" />
-        <Stat label="Deliveries for me" value={myDeliveries} tone={myDeliveries ? "amber" : undefined} href="/deliveries" />
-        {agent && <Stat label="Supplies low" value={lowStock} tone={lowStock ? "amber" : undefined} href="/inventory/supplies" />}
+        {agent && <Stat label={t("Assigned to me")} value={assignedToMe} href="/tickets?view=assigned" />}
+        <Stat label={t("My open requests")} value={myOpen} href="/tickets?view=mine" />
+        <Stat label={t("Deliveries for me")} value={myDeliveries} tone={myDeliveries ? "amber" : undefined} href="/deliveries" />
+        {agent && <Stat label={t("Supplies low")} value={lowStock} tone={lowStock ? "amber" : undefined} href="/inventory/supplies" />}
       </div>
 
       {departments.map((d) => {
@@ -85,13 +87,13 @@ export default async function Dashboard() {
               <DeptBadge dept={d} />
             </h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-              <Stat label="Open" value={n.open} href={q("open")} />
-              <Stat label="Unassigned" value={n.unassigned} tone={n.unassigned ? "amber" : undefined} href={q("active")} />
-              <Stat label="In progress" value={n.inProgress} href={q("in_progress")} />
-              <Stat label="Waiting" value={n.waiting} href={q("waiting")} />
-              <Stat label="Standby" value={n.standby} href={q("standby")} />
-              <Stat label="Urgent" value={n.urgent} tone={n.urgent ? "red" : undefined} href={q("active")} />
-              <Stat label="Overdue" value={n.overdue} tone={n.overdue ? "red" : undefined} href={q("active")} />
+              <Stat label={t("Open")} value={n.open} href={q("open")} />
+              <Stat label={t("Unassigned")} value={n.unassigned} tone={n.unassigned ? "amber" : undefined} href={q("active")} />
+              <Stat label={t("In progress")} value={n.inProgress} href={q("in_progress")} />
+              <Stat label={t("Waiting")} value={n.waiting} href={q("waiting")} />
+              <Stat label={t("Standby")} value={n.standby} href={q("standby")} />
+              <Stat label={t("Urgent")} value={n.urgent} tone={n.urgent ? "red" : undefined} href={q("active")} />
+              <Stat label={t("Overdue")} value={n.overdue} tone={n.overdue ? "red" : undefined} href={q("active")} />
             </div>
           </section>
         );
@@ -99,11 +101,11 @@ export default async function Dashboard() {
 
       {desk && (
         <section className="mb-8">
-          <h2 className="mb-3 text-sm font-semibold">Reception</h2>
+          <h2 className="mb-3 text-sm font-semibold">{t("Reception")}</h2>
           <div className="grid grid-cols-3 gap-3">
-            <Stat label="Visitors on site" value={desk[0]} href="/visitors" />
-            <Stat label="Still expected today" value={desk[1]} href="/visitors" />
-            <Stat label="Parcels on the shelf" value={desk[2]} href="/deliveries" />
+            <Stat label={t("Visitors on site")} value={desk[0]} href="/visitors" />
+            <Stat label={t("Still expected today")} value={desk[1]} href="/visitors" />
+            <Stat label={t("Parcels on the shelf")} value={desk[2]} href="/deliveries" />
           </div>
         </section>
       )}

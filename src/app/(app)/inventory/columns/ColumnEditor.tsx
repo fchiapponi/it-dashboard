@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
+import { useI18n } from "@/i18n/client";
 import { saveListColumns } from "../actions";
 
 type Column = { key: string; label: string; custom: boolean; note?: string; original?: string };
@@ -29,6 +30,7 @@ export function ColumnEditor({
   available: Column[];
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [pending, start] = useTransition();
   const [columns, setColumns] = useState<Column[]>(initial.map((c) => ({ ...c, original: c.custom ? c.label : undefined })));
   const [newName, setNewName] = useState("");
@@ -46,7 +48,7 @@ export function ColumnEditor({
   function addNew() {
     const label = newName.trim();
     if (!label || used.has(`extra:${label}`)) return;
-    setColumns((cols) => [...cols, { key: `extra:${label}`, label, custom: true, note: "custom field" }]);
+    setColumns((cols) => [...cols, { key: `extra:${label}`, label, custom: true, note: t("custom field") }]);
     setNewName("");
   }
 
@@ -66,29 +68,29 @@ export function ColumnEditor({
   return (
     <div className="space-y-6">
       <section className="card overflow-hidden">
-        <div className="border-b border-line px-4 py-3 text-sm font-semibold">Columns shown, in order</div>
+        <div className="border-b border-line px-4 py-3 text-sm font-semibold">{t("Columns shown, in order")}</div>
         <ul className="divide-y divide-line">
-          <li className="flex items-center gap-2 px-4 py-2.5 text-sm text-dim">Tag (always first)</li>
+          <li className="flex items-center gap-2 px-4 py-2.5 text-sm text-dim">{t("Tag (always first)")}</li>
           {columns.map((c, i) => (
             <li key={c.original ?? c.key} className="flex items-center gap-2 px-4 py-2">
               {c.custom ? (
                 <input
                   value={c.label}
                   onChange={(e) => setColumns((cols) => cols.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
-                  aria-label="Column name"
+                  aria-label={t("Column name")}
                   className="input max-w-xs"
                 />
               ) : (
                 <span className="flex-1 text-sm sm:max-w-xs">{c.label}</span>
               )}
               <span className="flex-1 text-xs text-dim">{c.note}</span>
-              <button type="button" className="btn px-2" disabled={i === 0} onClick={() => move(i, -1)} title="Move up">
+              <button type="button" className="btn px-2" disabled={i === 0} onClick={() => move(i, -1)} title={t("Move up")}>
                 <ArrowUp className="size-4" />
               </button>
-              <button type="button" className="btn px-2" disabled={i === columns.length - 1} onClick={() => move(i, 1)} title="Move down">
+              <button type="button" className="btn px-2" disabled={i === columns.length - 1} onClick={() => move(i, 1)} title={t("Move down")}>
                 <ArrowDown className="size-4" />
               </button>
-              <button type="button" className="btn px-2" onClick={() => setColumns((cols) => cols.filter((_, j) => j !== i))} title="Hide column">
+              <button type="button" className="btn px-2" onClick={() => setColumns((cols) => cols.filter((_, j) => j !== i))} title={t("Hide column")}>
                 <X className="size-4" />
               </button>
             </li>
@@ -99,7 +101,7 @@ export function ColumnEditor({
       <section className="card space-y-4 p-4">
         {hidden.length > 0 && (
           <div>
-            <div className="label">Add a column</div>
+            <div className="label">{t("Add a column")}</div>
             <div className="flex flex-wrap gap-2">
               {hidden.map((c) => (
                 <button key={toKey(c)} type="button" className="btn" onClick={() => setColumns((cols) => [...cols, c])}>
@@ -110,7 +112,7 @@ export function ColumnEditor({
           </div>
         )}
         <div>
-          <div className="label">New custom column</div>
+          <div className="label">{t("New custom column")}</div>
           <div className="flex max-w-md gap-2">
             <input
               value={newName}
@@ -121,23 +123,23 @@ export function ColumnEditor({
                   addNew();
                 }
               }}
-              placeholder="e.g. Apple ID, Toner, Room phone"
+              placeholder={t("e.g. Apple ID, Toner, Room phone")}
               className="input"
             />
             <button type="button" className="btn" onClick={addNew}>
-              Add
+              {t("Add")}
             </button>
           </div>
-          <p className="mt-1 text-xs text-dim">It also appears as a field on every item of this list.</p>
+          <p className="mt-1 text-xs text-dim">{t("It also appears as a field on every item of this list.")}</p>
         </div>
       </section>
 
       <div className="flex justify-end gap-2">
         <Link href={backHref} className="btn">
-          Cancel
+          {t("Cancel")}
         </Link>
         <button type="button" className="btn btn-primary" disabled={pending} onClick={save}>
-          {pending ? "Saving…" : "Save columns"}
+          {pending ? t("Saving…") : t("Save columns")}
         </button>
       </div>
     </div>

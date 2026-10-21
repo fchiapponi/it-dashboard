@@ -3,6 +3,7 @@
 import { startTransition, useOptimistic, useRef, useState, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { AlignLeft, CalendarDays, Check, MessageSquare, Plus, Trash2, X } from "lucide-react";
+import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 import { createCard, createList, deleteList, moveCard, renameList, reorderLists } from "./actions";
 
@@ -184,6 +185,7 @@ function CardFace({
   onDragStart: (e: DragEvent) => void;
   onDragEnd: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div
       role="button"
@@ -218,10 +220,10 @@ function CardFace({
             )}
             {card.done && !card.due && (
               <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
-                <Check className="size-3" /> Done
+                <Check className="size-3" /> {t("Done")}
               </span>
             )}
-            {card.hasDescription && <AlignLeft className="size-3.5" aria-label="Has a description" />}
+            {card.hasDescription && <AlignLeft className="size-3.5" aria-label={t("Has a description")} />}
             {card.comments > 0 && (
               <span className="inline-flex items-center gap-1">
                 <MessageSquare className="size-3.5" />
@@ -244,6 +246,7 @@ function CardFace({
 }
 
 function ListHeader({ list }: { list: ListItem }) {
+  const { t } = useI18n();
   const save = (input: HTMLInputElement) => {
     const title = input.value.trim();
     if (!title) {
@@ -261,7 +264,7 @@ function ListHeader({ list }: { list: ListItem }) {
       <input
         key={list.title}
         defaultValue={list.title}
-        aria-label="List title"
+        aria-label={t("List title")}
         className="min-w-0 flex-1 cursor-pointer rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm font-semibold outline-none focus:cursor-text focus:border-accent focus:bg-panel"
         onBlur={(e) => save(e.currentTarget)}
         onKeyDown={(e) => {
@@ -275,11 +278,11 @@ function ListHeader({ list }: { list: ListItem }) {
       <span className="text-xs text-dim tabular-nums">{list.cards.length}</span>
       <button
         className="btn border-0 bg-transparent px-1.5 text-dim"
-        title="Delete list"
+        title={t("Delete list")}
         onClick={() => {
           const msg = list.cards.length
-            ? `Delete the list "${list.title}" and its ${list.cards.length} card(s)?`
-            : `Delete the list "${list.title}"?`;
+            ? t('Delete the list "{title}" and its {n} card(s)?', { title: list.title, n: list.cards.length })
+            : t('Delete the list "{title}"?', { title: list.title });
           if (confirm(msg)) startTransition(() => deleteList(list.id));
         }}
       >
@@ -290,11 +293,12 @@ function ListHeader({ list }: { list: ListItem }) {
 }
 
 function AddCard({ listId }: { listId: string }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
       <button className="m-2 mt-0 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-dim hover:bg-panel hover:text-fg" onClick={() => setOpen(true)}>
-        <Plus className="size-4" /> Add a card
+        <Plus className="size-4" /> {t("Add a card")}
       </button>
     );
   }
@@ -305,7 +309,7 @@ function AddCard({ listId }: { listId: string }) {
         required
         autoFocus
         rows={2}
-        placeholder="Card title"
+        placeholder={t("Card title")}
         className="input resize-none"
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
@@ -316,8 +320,8 @@ function AddCard({ listId }: { listId: string }) {
         }}
       />
       <div className="flex gap-2">
-        <button className="btn btn-primary">Add card</button>
-        <button type="button" className="btn border-0 bg-transparent px-2" title="Cancel" onClick={() => setOpen(false)}>
+        <button className="btn btn-primary">{t("Add card")}</button>
+        <button type="button" className="btn border-0 bg-transparent px-2" title={t("Cancel")} onClick={() => setOpen(false)}>
           <X className="size-4" />
         </button>
       </div>
@@ -326,6 +330,7 @@ function AddCard({ listId }: { listId: string }) {
 }
 
 function AddList({ boardId }: { boardId: string }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
@@ -333,7 +338,7 @@ function AddList({ boardId }: { boardId: string }) {
         className="flex w-72 shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-line px-3 py-2.5 text-sm text-dim hover:bg-panel hover:text-fg"
         onClick={() => setOpen(true)}
       >
-        <Plus className="size-4" /> Add a list
+        <Plus className="size-4" /> {t("Add a list")}
       </button>
     );
   }
@@ -343,13 +348,13 @@ function AddList({ boardId }: { boardId: string }) {
         name="title"
         required
         autoFocus
-        placeholder="List title"
+        placeholder={t("List title")}
         className="input"
         onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
       />
       <div className="flex gap-2">
-        <button className="btn btn-primary">Add list</button>
-        <button type="button" className="btn border-0 bg-transparent px-2" title="Cancel" onClick={() => setOpen(false)}>
+        <button className="btn btn-primary">{t("Add list")}</button>
+        <button type="button" className="btn border-0 bg-transparent px-2" title={t("Cancel")} onClick={() => setOpen(false)}>
           <X className="size-4" />
         </button>
       </div>

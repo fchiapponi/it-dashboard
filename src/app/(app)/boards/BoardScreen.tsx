@@ -7,6 +7,7 @@ import { BOARD_COLORS, CARD_COLORS, initials } from "@/lib/boards";
 import { fmtDate, fmtDateTime, fmtRelative, startOfToday, toLocalInput } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
+import { getI18n } from "@/i18n/server";
 import { BoardView, type ListItem } from "./BoardView";
 import { ColorPicker } from "./ColorPicker";
 import { ConfirmButton } from "./ConfirmButton";
@@ -23,6 +24,7 @@ export async function BoardScreen({
   department?: { id: string; name: string; slug: string };
   cardId: string | null;
 }) {
+  const { t, locale } = await getI18n();
   const basePath = department ? `/boards/${department.slug}` : "/boards";
 
   const [full, departments] = await Promise.all([
@@ -54,7 +56,7 @@ export async function BoardScreen({
       color: c.color,
       done: c.done,
       due: c.dueAt
-        ? { label: fmtDate(c.dueAt), state: c.dueAt < today ? "overdue" : c.dueAt < tomorrow ? "today" : "later" }
+        ? { label: fmtDate(c.dueAt, locale), state: c.dueAt < today ? "overdue" : c.dueAt < tomorrow ? "today" : "later" }
         : null,
       assignee: department && c.assignee ? { name: c.assignee.name, initials: initials(c.assignee.name) } : null,
       comments: c._count.comments,
@@ -63,7 +65,7 @@ export async function BoardScreen({
   }));
 
   const tabs = [
-    { href: "/boards", label: "My board", icon: User, active: !department },
+    { href: "/boards", label: t("My board"), icon: User, active: !department },
     ...departments.map((d) => ({ href: `/boards/${d.slug}`, label: d.name, icon: Users, active: d.id === department?.id })),
   ];
 
@@ -71,17 +73,17 @@ export async function BoardScreen({
     <>
       {tabs.length > 1 && (
         <div className="mb-5 flex gap-1 overflow-x-auto border-b border-line">
-          {tabs.map((t) => (
+          {tabs.map((tab) => (
             <Link
-              key={t.href}
-              href={t.href}
+              key={tab.href}
+              href={tab.href}
               className={cn(
                 "-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium",
-                t.active ? "border-accent text-fg" : "border-transparent text-dim hover:text-fg",
+                tab.active ? "border-accent text-fg" : "border-transparent text-dim hover:text-fg",
               )}
             >
-              <t.icon className="size-4" />
-              {t.label}
+              <tab.icon className="size-4" />
+              {tab.label}
             </Link>
           ))}
         </div>
@@ -96,26 +98,28 @@ export async function BoardScreen({
         }
         subtitle={
           full.description ??
-          (department ? `${department.name}'s shared board — everyone can see and edit it` : "Your personal board — only you can see it")
+          (department
+            ? t("{dept}'s shared board — everyone can see and edit it", { dept: department.name })
+            : t("Your personal board — only you can see it"))
         }
         actions={
           <details className="relative">
             <summary className="btn cursor-pointer list-none">
-              <Settings className="size-4" /> Board settings
+              <Settings className="size-4" /> {t("Board settings")}
             </summary>
             <div className="card absolute right-0 z-20 mt-2 w-80 p-4 shadow-lg">
               <form action={updateBoard.bind(null, full.id)} className="grid gap-3">
-                <Field label="Title">
+                <Field label={t("Title")}>
                   <input name="title" required defaultValue={full.title} className="input" />
                 </Field>
-                <Field label="Description">
+                <Field label={t("Description")}>
                   <input name="description" defaultValue={full.description ?? ""} className="input" />
                 </Field>
                 <div>
-                  <span className="label">Color</span>
+                  <span className="label">{t("Color")}</span>
                   <ColorPicker name="color" colors={BOARD_COLORS} defaultValue={full.color} />
                 </div>
-                <button className="btn btn-primary">Save</button>
+                <button className="btn btn-primary">{t("Save")}</button>
               </form>
             </div>
           </details>
@@ -142,6 +146,7 @@ async function CardDialog({
   lists: { id: string; title: string }[];
   department?: { id: string };
 }) {
+  const { t, locale } = await getI18n();
   const [card, members] = await Promise.all([
     prisma.card.findUnique({
       where: { id: cardId },
@@ -162,17 +167,17 @@ async function CardDialog({
       {card.color && <div className="h-2 rounded-t-xl" style={{ background: card.color }} />}
       <div className="p-6">
         <p className="mb-3 pr-10 text-xs text-dim">
-          In list <span className="font-medium text-fg">{card.list.title}</span> · created
-          {department && ` by ${card.createdBy.name}`} {fmtRelative(card.createdAt)}
+          {t("In list")} <span className="font-medium text-fg">{card.list.title}</span> ·{" "}
+          {department ? t("created by {name}", { name: card.createdBy.name }) : t("created")} {fmtRelative(card.createdAt, locale)}
         </p>
 
         <form action={updateCard.bind(null, card.id)} className="grid gap-4">
-          <Field label="Title">
+          <Field label={t("Title")}>
             <input name="title" required defaultValue={card.title} className="input text-base font-medium" />
           </Field>
 
           <div className={cn("grid gap-4", department ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
-            <Field label="List">
+            <Field label={t("List")}>
               <select name="listId" defaultValue={card.listId} className="input">
                 {lists.map((l) => (
                   <option key={l.id} value={l.id}>
@@ -182,7 +187,7 @@ async function CardDialog({
               </select>
             </Field>
             {department && (
-              <Field label="Assigned to">
+              <Field label={t("Assigned to")}>
                 <select name="assigneeId" defaultValue={card.assigneeId ?? ""} className="input">
                   <option value="">—</option>
                   {members.map((u) => (
@@ -193,39 +198,39 @@ async function CardDialog({
                 </select>
               </Field>
             )}
-            <Field label="Due date">
+            <Field label={t("Due date")}>
               <input name="dueAt" type="date" defaultValue={toLocalInput(card.dueAt).slice(0, 10)} className="input" />
             </Field>
           </div>
 
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <span className="label">Label</span>
+              <span className="label">{t("Label")}</span>
               <ColorPicker name="color" colors={CARD_COLORS} defaultValue={card.color} allowNone />
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="done" defaultChecked={card.done} className="size-4 accent-accent" />
-              Done
+              {t("Done")}
             </label>
           </div>
 
-          <Field label="Description">
-            <textarea name="description" rows={5} defaultValue={card.description ?? ""} placeholder="Add more detail…" className="input" />
+          <Field label={t("Description")}>
+            <textarea name="description" rows={5} defaultValue={card.description ?? ""} placeholder={t("Add more detail…")} className="input" />
           </Field>
 
           <div className="flex justify-end">
-            <button className="btn btn-primary">Save card</button>
+            <button className="btn btn-primary">{t("Save card")}</button>
           </div>
         </form>
 
         <div className="mt-6 border-t border-line pt-5">
-          <h3 className="mb-3 text-sm font-semibold">Comments</h3>
+          <h3 className="mb-3 text-sm font-semibold">{t("Comments")}</h3>
           {card.comments.length > 0 && (
             <ul className="mb-4 space-y-3">
               {card.comments.map((c) => (
                 <li key={c.id} className="text-sm">
                   <div className="text-xs text-dim">
-                    <span className="font-medium text-fg">{c.author?.name ?? "Deleted user"}</span> · {fmtDateTime(c.createdAt)}
+                    <span className="font-medium text-fg">{c.author?.name ?? t("Deleted user")}</span> · {fmtDateTime(c.createdAt, locale)}
                   </div>
                   <div className="mt-1 rounded-lg bg-panel-muted px-3 py-2 whitespace-pre-wrap">{c.body}</div>
                 </li>
@@ -233,14 +238,14 @@ async function CardDialog({
             </ul>
           )}
           <form action={addCardComment.bind(null, card.id)} className="flex gap-2">
-            <textarea name="body" required rows={1} placeholder="Write a comment…" className="input" />
-            <button className="btn self-start">Send</button>
+            <textarea name="body" required rows={1} placeholder={t("Write a comment…")} className="input" />
+            <button className="btn self-start">{t("Send")}</button>
           </form>
         </div>
 
         <form action={deleteCard.bind(null, card.id)} className="mt-6 flex justify-end border-t border-line pt-4">
-          <ConfirmButton message={`Delete the card "${card.title}"?`} className="btn btn-danger">
-            <Trash2 className="size-4" /> Delete card
+          <ConfirmButton message={t('Delete the card "{title}"?', { title: card.title })} className="btn btn-danger">
+            <Trash2 className="size-4" /> {t("Delete card")}
           </ConfirmButton>
         </form>
       </div>

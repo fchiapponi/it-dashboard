@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Field } from "@/components/ui";
+import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 type Dept = { id: string; name: string; color: string; description: string | null; categories: { id: string; name: string }[] };
@@ -17,13 +18,14 @@ export function TicketForm({
   locations: { id: string; name: string }[];
   defaults: { departmentId?: string; assetTag?: string; title?: string; locationId?: string };
 }) {
+  const { t } = useI18n();
   const [deptId, setDeptId] = useState(defaults.departmentId ?? departments[0]?.id);
   const dept = departments.find((d) => d.id === deptId);
 
   return (
     <form action={action} className="card space-y-5 p-6">
       <div>
-        <span className="label">Who should handle this?</span>
+        <span className="label">{t("Who should handle this?")}</span>
         <div className="grid gap-2 sm:grid-cols-2">
           {departments.map((d) => (
             <label
@@ -44,12 +46,12 @@ export function TicketForm({
         </div>
       </div>
 
-      <Field label="Short summary">
-        <input name="title" required defaultValue={defaults.title} placeholder="e.g. Projector in room 12 won't turn on" className="input" />
+      <Field label={t("Short summary")}>
+        <input name="title" required defaultValue={defaults.title} placeholder={t("e.g. Projector in room 12 won't turn on")} className="input" />
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Field label="Category">
+        <Field label={t("Category")}>
           <select name="categoryId" className="input" key={deptId}>
             <option value="">—</option>
             {dept?.categories.map((c) => (
@@ -59,7 +61,7 @@ export function TicketForm({
             ))}
           </select>
         </Field>
-        <Field label="Location">
+        <Field label={t("Location")}>
           <select name="locationId" defaultValue={defaults.locationId ?? ""} className="input">
             <option value="">—</option>
             {locations.map((l) => (
@@ -69,31 +71,31 @@ export function TicketForm({
             ))}
           </select>
         </Field>
-        <Field label="Priority">
+        <Field label={t("Priority")}>
           <select name="priority" defaultValue="normal" className="input">
-            <option value="low">Low</option>
-            <option value="normal">Normal</option>
-            <option value="high">High</option>
-            <option value="urgent">Urgent — class or safety affected</option>
+            <option value="low">{t("Low")}</option>
+            <option value="normal">{t("Normal")}</option>
+            <option value="high">{t("High")}</option>
+            <option value="urgent">{t("Urgent — class or safety affected")}</option>
           </select>
         </Field>
       </div>
 
-      <Field label="Details">
-        <textarea name="description" required rows={6} placeholder="What happened, room number, since when, what you already tried…" className="input" />
+      <Field label={t("Details")}>
+        <textarea name="description" required rows={6} placeholder={t("What happened, room number, since when, what you already tried…")} className="input" />
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Asset tag (optional — printed on the QR label)">
+        <Field label={t("Asset tag (optional — printed on the QR label)")}>
           <input name="assetTag" defaultValue={defaults.assetTag} placeholder="TAS-00042" className="input max-w-48 uppercase" />
         </Field>
-        <Field label="Needed by (optional)">
+        <Field label={t("Needed by (optional)")}>
           <input name="dueAt" type="date" className="input max-w-48" />
         </Field>
       </div>
 
       <div className="flex justify-end">
-        <button className="btn btn-primary">Submit ticket</button>
+        <button className="btn btn-primary">{t("Submit ticket")}</button>
       </div>
     </form>
   );

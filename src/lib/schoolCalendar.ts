@@ -3,9 +3,11 @@
 //   2026–27: https://www.tasis.ch/uploaded/documents/Parent_Portal/26_27/26_27_Academic_Year_Calendar.pdf
 // Only dates from January 2026 on are listed. Add next year's here when it is published.
 
+import type { Message } from "@/i18n";
+
 export type DayKind = "classes" | "weekend" | "special" | "orientation" | "holiday" | "summer";
 
-export const DAY_KINDS: Record<DayKind, { name: string; short: string; color: string }> = {
+export const DAY_KINDS: Record<DayKind, { name: Message; short: Message; color: string }> = {
   classes: { name: "Classes", short: "Classes", color: "var(--cal-classes)" },
   weekend: { name: "Weekend (school year)", short: "Weekend", color: "var(--cal-weekend)" },
   special: { name: "Special day", short: "Special", color: "var(--cal-special)" },

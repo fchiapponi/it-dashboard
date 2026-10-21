@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CircleCheck } from "lucide-react";
-import { PageHeader } from "@/components/ui";
+import { Field, PageHeader } from "@/components/ui";
 import { fieldLabelsFor, hasAssignedTo, parseExtra } from "@/lib/assets";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { managedDepartments } from "@/lib/tickets";
-import { createAsset } from "../actions";
-import { AssetFields } from "../AssetFields";
+import { getI18n } from "@/i18n/server";
+import { createAsset, createList } from "../actions";
+import { AssetFields, ASSET_TYPES } from "../AssetFields";
 
 /**
  * ?type=iPad starts the form with that type; ?copy=TAG pre-fills it from an
@@ -16,6 +17,7 @@ import { AssetFields } from "../AssetFields";
 export default async function NewAssetPage({ searchParams }: PageProps<"/inventory/new">) {
   const user = await requireUser();
   const sp = await searchParams;
+  const { t } = await getI18n();
   const one = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : null);
   const copyTag = one("copy")?.toUpperCase();
   const added = one("added")?.toUpperCase();
@@ -27,9 +29,35 @@ export default async function NewAssetPage({ searchParams }: PageProps<"/invento
   ]);
   if (!departments.length) notFound();
 
-  const newList = one("newList") === "1";
-  const type = newList ? null : (source?.type ?? one("type"));
+  const type = source?.type ?? one("type");
   const departmentId = source?.departmentId ?? departments.find((d) => d.slug === one("dept"))?.id;
+
+  // ?newList=1 only names a new, empty list; its items are added from the list.
+  if (one("newList") === "1") {
+    const dept = departments.find((d) => d.id === departmentId) ?? departments[0];
+    return (
+      <div className="mx-auto max-w-xl">
+        <PageHeader title={t("New list")} subtitle={t("A new list in {dept}'s inventory (e.g. iPad, Laptop, Projector).", { dept: dept.name })} />
+        <form action={createList} className="card space-y-6 p-6">
+          <input type="hidden" name="departmentId" value={dept.id} />
+          <Field label={t("Name")}>
+            <input name="type" required autoFocus list="asset-types" className="input" />
+            <datalist id="asset-types">
+              {ASSET_TYPES.map((type) => (
+                <option key={type} value={type} />
+              ))}
+            </datalist>
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Link href={`/inventory?dept=${dept.slug}`} className="btn">
+              {t("Cancel")}
+            </Link>
+            <button className="btn btn-primary">{t("Add list")}</button>
+          </div>
+        </form>
+      </div>
+    );
+  }
   const defaults = source
     ? {
         name: source.name,
@@ -50,12 +78,8 @@ export default async function NewAssetPage({ searchParams }: PageProps<"/invento
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
-        title={newList ? "New list" : type ? `Add ${type}` : "Add asset"}
-        subtitle={
-          newList
-            ? "Type the name of the new list (e.g. iPad, Laptop, Projector) and add its first item. Fields you add here are suggested for the next ones."
-            : "A tag is generated automatically; print its QR label from the asset page or the list."
-        }
+        title={type ? t("Add {type}", { type }) : t("Add asset")}
+        subtitle={t("A tag is generated automatically; print its QR label from the asset page or the list.")}
       />
       {added && (
         <div className="mb-4 flex items-center gap-2 rounded-lg bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
@@ -64,7 +88,7 @@ export default async function NewAssetPage({ searchParams }: PageProps<"/invento
             <Link href={`/inventory/${added}`} className="font-mono font-medium underline">
               {added}
             </Link>{" "}
-            added. The form below is pre-filled for the next one.
+            {t("added. The form below is pre-filled for the next one.")}
           </span>
         </div>
       )}
@@ -81,9 +105,9 @@ export default async function NewAssetPage({ searchParams }: PageProps<"/invento
         />
         <div className="flex flex-wrap justify-end gap-2">
           {/* first in the DOM so Enter adds the asset; shown second */}
-          <button className="btn btn-primary">Add asset</button>
+          <button className="btn btn-primary">{t("Add asset")}</button>
           <button name="then" value="another" className="btn order-first">
-            Save &amp; add another
+            {t("Save & add another")}
           </button>
         </div>
       </form>

@@ -4,13 +4,15 @@ import { Badge, Empty, FilterTabs, PageHeader, Section } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { fmtTime, startOfToday } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-
-const dayFmt = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Zurich", weekday: "long", day: "numeric", month: "long" });
+import { INTL } from "@/i18n";
+import { getI18n } from "@/i18n/server";
 
 export default async function EventsPage({ searchParams }: PageProps<"/events">) {
   await requireUser();
   const past = (await searchParams).when === "past";
   const today = startOfToday();
+  const { t, locale } = await getI18n();
+  const dayFmt = new Intl.DateTimeFormat(INTL[locale], { timeZone: "Europe/Zurich", weekday: "long", day: "numeric", month: "long" });
 
   const events = await prisma.event.findMany({
     where: past ? { endsAt: { lt: today } } : { endsAt: { gte: today } },
@@ -29,24 +31,24 @@ export default async function EventsPage({ searchParams }: PageProps<"/events">)
   return (
     <>
       <PageHeader
-        title="Events"
-        subtitle="School events and the IT, Facilities, Electrician and Kitchen support they need"
+        title={t("Events")}
+        subtitle={t("School events and the IT, Facilities, Electrician and Kitchen support they need")}
         actions={
           <Link href="/events/new" className="btn btn-primary">
-            <Plus className="size-4" /> New event
+            <Plus className="size-4" /> {t("New event")}
           </Link>
         }
       />
       <FilterTabs
         active={past ? "past" : "upcoming"}
         items={[
-          { key: "upcoming", label: "Upcoming", href: "/events" },
-          { key: "past", label: "Past", href: "/events?when=past" },
+          { key: "upcoming", label: t("Upcoming"), href: "/events" },
+          { key: "past", label: t("Past"), href: "/events?when=past" },
         ]}
       />
       {events.length === 0 ? (
         <Section>
-          <Empty>No events.</Empty>
+          <Empty>{t("No events.")}</Empty>
         </Section>
       ) : (
         <div className="space-y-6">
@@ -57,11 +59,11 @@ export default async function EventsPage({ searchParams }: PageProps<"/events">)
               </h2>
               <div className="card divide-y divide-line">
                 {list.map((e) => {
-                  const openTickets = e.tickets.filter((t) => !["resolved", "closed"].includes(t.status)).length;
+                  const openTickets = e.tickets.filter((ticket) => !["resolved", "closed"].includes(ticket.status)).length;
                   return (
                     <Link key={e.id} href={`/events/${e.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm hover:bg-panel-muted">
                       <span className="w-28 shrink-0 text-dim tabular-nums">
-                        {fmtTime(e.startsAt)} – {fmtTime(e.endsAt)}
+                        {fmtTime(e.startsAt, locale)} – {fmtTime(e.endsAt, locale)}
                       </span>
                       <span className="min-w-0 flex-1 font-medium">{e.title}</span>
                       {e.location && (
@@ -76,7 +78,9 @@ export default async function EventsPage({ searchParams }: PageProps<"/events">)
                       )}
                       {e.tickets.length > 0 && (
                         <Badge tone={openTickets ? "amber" : "green"}>
-                          {openTickets ? `${openTickets} open request${openTickets > 1 ? "s" : ""}` : "Support ready"}
+                          {openTickets
+                            ? t(openTickets > 1 ? "{n} open requests" : "{n} open request", { n: openTickets })
+                            : t("Support ready")}
                         </Badge>
                       )}
                       <Badge value={e.status} />

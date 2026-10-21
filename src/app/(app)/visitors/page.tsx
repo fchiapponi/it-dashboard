@@ -4,26 +4,28 @@ import { Badge, Empty, Field, PageHeader, Section, TableWrap } from "@/component
 import { isReception, requireUser } from "@/lib/auth";
 import { fmtDateTime, fmtTime, startOfToday, toLocalInput } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { getI18n } from "@/i18n/server";
 import { cancelVisitor, checkInVisitor, checkOutVisitor, preRegisterVisitor, walkInVisitor } from "./actions";
 
 type HostOption = { id: string; name: string };
 
-function VisitorFields({ hosts }: { hosts: HostOption[] }) {
+async function VisitorFields({ hosts }: { hosts: HostOption[] }) {
+  const { t } = await getI18n();
   return (
     <>
-      <Field label="Visitor name">
+      <Field label={t("Visitor name")}>
         <input name="name" required className="input" />
       </Field>
-      <Field label="Company / organisation">
+      <Field label={t("Company / organisation")}>
         <input name="company" className="input" />
       </Field>
-      <Field label="Email">
+      <Field label={t("Email")}>
         <input name="email" type="email" className="input" />
       </Field>
-      <Field label="Phone">
+      <Field label={t("Phone")}>
         <input name="phone" type="tel" className="input" />
       </Field>
-      <Field label="Visiting (staff member)">
+      <Field label={t("Visiting (staff member)")}>
         <select name="hostId" className="input">
           <option value="">—</option>
           {hosts.map((h) => (
@@ -33,11 +35,11 @@ function VisitorFields({ hosts }: { hosts: HostOption[] }) {
           ))}
         </select>
       </Field>
-      <Field label="…or host name (if not in the list)">
+      <Field label={t("…or host name (if not in the list)")}>
         <input name="hostName" className="input" />
       </Field>
-      <Field label="Purpose of visit" className="sm:col-span-2">
-        <input name="purpose" placeholder="Meeting, interview, contractor, parent visit…" className="input" />
+      <Field label={t("Purpose of visit")} className="sm:col-span-2">
+        <input name="purpose" placeholder={t("Meeting, interview, contractor, parent visit…")} className="input" />
       </Field>
     </>
   );
@@ -45,6 +47,7 @@ function VisitorFields({ hosts }: { hosts: HostOption[] }) {
 
 export default async function VisitorsPage() {
   const user = await requireUser();
+  const { t, locale } = await getI18n();
   const reception = isReception(user);
   const today = startOfToday();
   const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
@@ -60,22 +63,22 @@ export default async function VisitorsPage() {
     });
     return (
       <>
-        <PageHeader title="Visitors" subtitle="Let reception know who is coming to see you" />
+        <PageHeader title={t("Visitors")} subtitle={t("Let reception know who is coming to see you")} />
         <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-          <Section title="Pre-register a visitor">
+          <Section title={t("Pre-register a visitor")}>
             <form action={preRegisterVisitor} className="grid gap-3 p-4 sm:grid-cols-2">
               <VisitorFields hosts={hosts} />
-              <Field label="Expected arrival">
+              <Field label={t("Expected arrival")}>
                 <input name="expectedAt" type="datetime-local" required defaultValue={toLocalInput(new Date())} className="input" />
               </Field>
               <div className="flex items-end">
-                <button className="btn btn-primary">Register</button>
+                <button className="btn btn-primary">{t("Register")}</button>
               </div>
             </form>
           </Section>
-          <Section title="My visitors">
+          <Section title={t("My visitors")}>
             {mine.length === 0 ? (
-              <Empty>No visitors yet.</Empty>
+              <Empty>{t("No visitors yet.")}</Empty>
             ) : (
               <ul className="divide-y divide-line">
                 {mine.map((v) => (
@@ -85,18 +88,20 @@ export default async function VisitorsPage() {
                         {v.name} {v.company && <span className="font-normal text-dim">· {v.company}</span>}
                       </div>
                       <div className="text-xs text-dim">
-                        {v.checkedInAt ? `Arrived ${fmtDateTime(v.checkedInAt)}` : `Expected ${fmtDateTime(v.expectedAt)}`}
-                        {v.checkedOutAt && ` · left ${fmtTime(v.checkedOutAt)}`}
+                        {v.checkedInAt
+                          ? t("Arrived {when}", { when: fmtDateTime(v.checkedInAt, locale) })
+                          : t("Expected {when}", { when: fmtDateTime(v.expectedAt, locale) })}
+                        {v.checkedOutAt && ` · ${t("left {when}", { when: fmtTime(v.checkedOutAt, locale) })}`}
                       </div>
                     </div>
                     {!v.checkedInAt ? (
                       <form action={cancelVisitor.bind(null, v.id)}>
-                        <button className="btn px-2" title="Cancel">
+                        <button className="btn px-2" title={t("Cancel")}>
                           <X className="size-4" />
                         </button>
                       </form>
                     ) : (
-                      <Badge value={v.checkedOutAt ? "closed" : "resolved"}>{v.checkedOutAt ? "Left" : "On site"}</Badge>
+                      <Badge value={v.checkedOutAt ? "closed" : "resolved"}>{v.checkedOutAt ? t("Left") : t("On site")}</Badge>
                     )}
                   </li>
                 ))}
@@ -127,22 +132,22 @@ export default async function VisitorsPage() {
 
   return (
     <>
-      <PageHeader title="Visitors" subtitle={`${onSite.length} on site now · ${expected.length} still expected today`} />
+      <PageHeader title={t("Visitors")} subtitle={t("{onSite} on site now · {expected} still expected today", { onSite: onSite.length, expected: expected.length })} />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="min-w-0 space-y-6">
-          <Section title={`On site now (${onSite.length})`}>
+          <Section title={`${t("On site now")} (${onSite.length})`}>
             {onSite.length === 0 ? (
-              <Empty>Nobody is signed in.</Empty>
+              <Empty>{t("Nobody is signed in.")}</Empty>
             ) : (
               <TableWrap>
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Visitor</th>
-                      <th>Visiting</th>
-                      <th>Badge</th>
-                      <th>Since</th>
+                      <th>{t("Visitor")}</th>
+                      <th>{t("Visiting")}</th>
+                      <th>{t("Badge")}</th>
+                      <th>{t("Since")}</th>
                       <th />
                     </tr>
                   </thead>
@@ -155,14 +160,14 @@ export default async function VisitorsPage() {
                         </td>
                         <td>{hostOf(v)}</td>
                         <td className="tabular-nums">{v.badgeNumber ?? "—"}</td>
-                        <td className="text-dim">{fmtTime(v.checkedInAt)}</td>
+                        <td className="text-dim">{fmtTime(v.checkedInAt, locale)}</td>
                         <td className="text-right whitespace-nowrap">
                           <Link href={`/visitors/${v.id}/badge`} className="btn mr-2">
-                            Badge
+                            {t("Badge")}
                           </Link>
                           <form action={checkOutVisitor.bind(null, v.id)} className="inline">
                             <button className="btn">
-                              <LogOut className="size-4" /> Check out
+                              <LogOut className="size-4" /> {t("Check out")}
                             </button>
                           </form>
                         </td>
@@ -174,31 +179,31 @@ export default async function VisitorsPage() {
             )}
           </Section>
 
-          <Section title={`Expected today (${expected.length})`}>
+          <Section title={`${t("Expected today")} (${expected.length})`}>
             {expected.length === 0 ? (
-              <Empty>No more pre-registered visitors today.</Empty>
+              <Empty>{t("No more pre-registered visitors today.")}</Empty>
             ) : (
               <ul className="divide-y divide-line">
                 {expected.map((v) => (
                   <li key={v.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
                     <div className="min-w-0">
                       <div className="font-medium">
-                        {fmtTime(v.expectedAt)} · {v.name} {v.company && <span className="font-normal text-dim">({v.company})</span>}
+                        {fmtTime(v.expectedAt, locale)} · {v.name} {v.company && <span className="font-normal text-dim">({v.company})</span>}
                       </div>
                       <div className="text-xs text-dim">
-                        Visiting {hostOf(v)}
-                        {v.purpose && ` · ${v.purpose}`} · registered by {v.createdBy.name}
+                        {t("Visiting {host}", { host: hostOf(v) })}
+                        {v.purpose && ` · ${v.purpose}`} · {t("registered by {name}", { name: v.createdBy.name })}
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <form action={checkInVisitor.bind(null, v.id)} className="flex gap-2">
-                        <input name="badgeNumber" placeholder="Badge #" className="input w-24" />
+                        <input name="badgeNumber" placeholder={t("Badge #")} className="input w-24" />
                         <button className="btn btn-primary">
-                          <LogIn className="size-4" /> Check in
+                          <LogIn className="size-4" /> {t("Check in")}
                         </button>
                       </form>
                       <form action={cancelVisitor.bind(null, v.id)}>
-                        <button className="btn px-2" title="Remove">
+                        <button className="btn px-2" title={t("Remove")}>
                           <X className="size-4" />
                         </button>
                       </form>
@@ -209,18 +214,18 @@ export default async function VisitorsPage() {
             )}
           </Section>
 
-          <Section title="Recently left">
+          <Section title={t("Recently left")}>
             {recent.length === 0 ? (
-              <Empty>No visits logged yet.</Empty>
+              <Empty>{t("No visits logged yet.")}</Empty>
             ) : (
               <TableWrap>
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Visitor</th>
-                      <th>Visiting</th>
-                      <th>In</th>
-                      <th>Out</th>
+                      <th>{t("Visitor")}</th>
+                      <th>{t("Visiting")}</th>
+                      <th>{t("In")}</th>
+                      <th>{t("Out")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -230,8 +235,8 @@ export default async function VisitorsPage() {
                           {v.name} {v.company && <span className="text-dim">· {v.company}</span>}
                         </td>
                         <td className="text-dim">{hostOf(v)}</td>
-                        <td className="whitespace-nowrap text-dim">{fmtDateTime(v.checkedInAt)}</td>
-                        <td className="whitespace-nowrap text-dim">{fmtTime(v.checkedOutAt)}</td>
+                        <td className="whitespace-nowrap text-dim">{fmtDateTime(v.checkedInAt, locale)}</td>
+                        <td className="whitespace-nowrap text-dim">{fmtTime(v.checkedOutAt, locale)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -242,27 +247,27 @@ export default async function VisitorsPage() {
         </div>
 
         <aside className="space-y-6">
-          <Section title="Walk-in check-in">
+          <Section title={t("Walk-in check-in")}>
             <form action={walkInVisitor} className="grid gap-3 p-4">
               <VisitorFields hosts={hosts} />
-              <Field label="Badge number">
+              <Field label={t("Badge number")}>
                 <input name="badgeNumber" className="input" />
               </Field>
               <div>
                 <button className="btn btn-primary w-full">
-                  <LogIn className="size-4" /> Check in
+                  <LogIn className="size-4" /> {t("Check in")}
                 </button>
               </div>
             </form>
           </Section>
-          <Section title="Pre-register for another day">
+          <Section title={t("Pre-register for another day")}>
             <form action={preRegisterVisitor} className="grid gap-3 p-4">
               <VisitorFields hosts={hosts} />
-              <Field label="Expected arrival">
+              <Field label={t("Expected arrival")}>
                 <input name="expectedAt" type="datetime-local" required className="input" />
               </Field>
               <div>
-                <button className="btn w-full">Register</button>
+                <button className="btn w-full">{t("Register")}</button>
               </div>
             </form>
           </Section>

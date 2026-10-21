@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowDown, Columns3, Pencil, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowDown, Columns3, Plus, Printer, Trash2 } from "lucide-react";
 import { Badge, Empty, FilterTabs, PageHeader, Section, TableWrap } from "@/components/ui";
 import type { Asset, Location } from "@/generated/prisma";
 import {
@@ -13,7 +13,6 @@ import {
   INK_COLUMN,
   isDeviceField,
   isPrinter,
-  isReadFromDevice,
   parseExtra,
   parseReadings,
   readAssetFilters,
@@ -21,12 +20,14 @@ import {
   savedColumns,
 } from "@/lib/assets";
 import { isAgent, requireUser } from "@/lib/auth";
-import { ASSET_STATUSES, fmtDate, fmtDateTime, label, toLocalInput } from "@/lib/format";
+import { ASSET_STATUSES, fmtDate, fmtDateTime, label } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
+import type { Locale } from "@/i18n";
+import { getI18n } from "@/i18n/server";
 import { lowStockCount, managedDepartments } from "@/lib/tickets";
 import { ConfirmButton } from "../boards/ConfirmButton";
-import { bulkUpdateAssets, deleteAssets, refreshAllPrinters, saveTable } from "./actions";
+import { bulkUpdateAssets, deleteAssets, refreshAllPrinters } from "./actions";
 import { InkLevels } from "./InkLevels";
 import { PrinterButton } from "./PrinterButton";
 import { SelectAll } from "./SelectAll";
@@ -39,8 +40,8 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
   const user = await requireUser();
   if (!isAgent(user)) notFound();
   const sp = await searchParams;
+  const { t, locale } = await getI18n();
   const filters = readAssetFilters(sp);
-  const editing = sp.edit === "1";
 
   // Each department has its own inventory, and inside it one list per type
   // (Printers, iPads, …), each with its own columns.
@@ -53,25 +54,31 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
     departments.find((d) => stocked.has(d.id)) ??
     departments[0];
   if (!dept) notFound();
-  const byType = await prisma.asset.groupBy({ by: ["type", "status"], where: { departmentId: dept.id }, _count: true, orderBy: { type: "asc" } });
-  const lists = [...new Set(byType.map((t) => t.type))].map((type) => ({
+  const [byType, made] = await Promise.all([
+    prisma.asset.groupBy({ by: ["type", "status"], where: { departmentId: dept.id }, _count: true, orderBy: { type: "asc" } }),
+    // Lists added with "New list" show up before their first item.
+    prisma.assetList.findMany({ where: { departmentId: dept.id }, select: { type: true } }),
+  ]);
+  const types = [...new Set([...byType.map((g) => g.type), ...made.map((l) => l.type)])].sort((a, b) => a.localeCompare(b));
+  const lists = types.map((type) => ({
     type,
-    count: byType.filter((t) => t.type === type && t.status !== "retired").reduce((n, t) => n + t._count, 0),
+    count: byType.filter((g) => g.type === type && g.status !== "retired").reduce((n, g) => n + g._count, 0),
   }));
   const type = lists.find((l) => l.type === filters.type)?.type ?? lists[0]?.type ?? "";
   const f = { ...filters, dept: dept.slug, type };
 
-  const [assets, locations, low, saved] = await Promise.all([
+  const [assets, locations, low, saved, byBuilding] = await Promise.all([
     type ? prisma.asset.findMany({ where: assetWhere(f), include: { location: true }, orderBy: ASSET_SORTS[f.sort], take: LIMIT }) : [],
     prisma.location.findMany({ orderBy: { name: "asc" } }),
     lowStockCount(user.isAdmin ? undefined : user.departmentIds),
     type ? savedColumns(dept.id, type) : null,
+    // How many items of this list each building has, with the other filters applied.
+    type ? prisma.asset.groupBy({ by: ["locationId"], where: assetWhere({ ...f, building: "" }), _count: true }) : [],
   ]);
+  const inBuilding = (id: string | null) => byBuilding.find((g) => g.locationId === id)?._count ?? 0;
   // Each list has its own columns, chosen on /inventory/columns.
   const columns = saved ?? defaultColumns(type, assets);
   const columnsHref = `/inventory/columns?dept=${dept.slug}&type=${encodeURIComponent(type)}`;
-  const listHref = `/inventory${filterQuery(f)}`;
-  const editHref = `${listHref}${listHref.includes("?") ? "&" : "?"}edit=1`;
   // Columns that "Set field…" can fill: plain text fields and custom fields.
   // On printer lists, serial/model/manufacturer come from the printers.
   const settable = columns.filter((c) => (SETTABLE.has(c) && !(isPrinter(f) && isDeviceField(c))) || extraLabel(c) !== null);
@@ -89,13 +96,13 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
   return (
     <>
       <PageHeader
-        title={`${dept.name} inventory`}
-        subtitle="Every tagged item, where it is and who has it"
+        title={t("{dept} inventory", { dept: dept.name })}
+        subtitle={t("Every tagged item, where it is and who has it")}
         actions={
           <>
-            {isPrinter(f) && <PrinterButton action={refreshAllPrinters}>Refresh all printers</PrinterButton>}
+            {isPrinter(f) && <PrinterButton action={refreshAllPrinters}>{t("Refresh all printers")}</PrinterButton>}
             <Link href={addHref} className="btn btn-primary">
-              <Plus className="size-4" /> Add {type || "item"}
+              <Plus className="size-4" /> {type ? t("Add {type}", { type }) : t("Add item")}
             </Link>
           </>
         }
@@ -113,7 +120,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
         {lists.map((l) => (
           <Link
             key={l.type}
-            href={`/inventory${filterQuery({ dept: dept.slug, type: l.type })}`}
+            href={`/inventory${filterQuery({ dept: dept.slug, type: l.type, building: f.building })}`}
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm",
               l.type === type ? "bg-accent font-medium text-white shadow-sm" : "text-dim hover:bg-panel hover:text-fg",
@@ -124,18 +131,18 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
           </Link>
         ))}
         <Link href={`/inventory/new?dept=${dept.slug}&newList=1`} className="rounded-lg px-3 py-1.5 text-sm text-dim hover:text-fg">
-          <Plus className="inline size-3.5" /> New list
+          <Plus className="inline size-3.5" /> {t("New list")}
         </Link>
       </div>
 
       {!type ? (
         <div className="card">
           <Empty>
-            {dept.name} has no inventory yet.{" "}
+            {t("{dept} has no inventory yet.", { dept: dept.name })}{" "}
             <Link href={`/inventory/new?dept=${dept.slug}&newList=1`} className="link">
-              Start a list
+              {t("Start a list")}
             </Link>{" "}
-            (e.g. iPads, Laptops, Printers).
+            {t("(e.g. iPads, Laptops, Printers).")}
           </Empty>
         </div>
       ) : (
@@ -144,84 +151,47 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
             <input type="hidden" name="dept" value={dept.slug} />
             <input type="hidden" name="type" value={type} />
             {f.sort !== "tag" && <input type="hidden" name="sort" value={f.sort} />}
-            <input name="q" defaultValue={f.q} placeholder={`Search ${type}: tag, name, serial, room, any field…`} className="input max-w-sm" />
+            <input name="q" defaultValue={f.q} placeholder={t("Search {type}: tag, name, serial, room, any field…", { type })} className="input max-w-sm" />
             <select name="status" defaultValue={f.status} className="input w-auto">
-              <option value="">Active (not retired)</option>
+              <option value="">{t("Active (not retired)")}</option>
               {ASSET_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {label(s)}
+                  {label(s, locale)}
                 </option>
               ))}
-              <option value="all">All, including retired</option>
+              <option value="all">{t("All, including retired")}</option>
             </select>
-            <button className="btn">Filter</button>
+            <select name="building" defaultValue={f.building} aria-label={t("Building")} className="input w-auto">
+              <option value="">{t("All buildings")}</option>
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name} ({inBuilding(l.id)})
+                </option>
+              ))}
+              <option value="none">
+                {t("No building")} ({inBuilding(null)})
+              </option>
+            </select>
+            <button className="btn">{t("Filter")}</button>
           </form>
 
-          {editing ? (
-            // Edit mode: every editable cell is an input; "Save all" writes only what changed.
-            <form action={saveTable}>
-              <input type="hidden" name="back" value={listHref} />
-              <Section
-                title={`Editing ${assets.length} item${assets.length === 1 ? "" : "s"}`}
-                actions={
-                  <div className="flex gap-2">
-                    <Link href={listHref} className="btn">
-                      Cancel
-                    </Link>
-                    <button className="btn btn-primary">Save all</button>
-                  </div>
-                }
-              >
-                <TableWrap>
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Tag</th>
-                        {columns.map((c) => (
-                          <th key={c}>{columnLabel(c)}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {assets.map((a) => {
-                        const extra = parseExtra(a.extra);
-                        return (
-                          <tr key={a.id}>
-                            <td className="font-mono text-xs whitespace-nowrap">{a.tag}</td>
-                            {columns.map((c) => (
-                              <td key={c} className="px-1.5 py-1">
-                                {editCell(a, c, extra, columns, locations)}
-                              </td>
-                            ))}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </TableWrap>
-              </Section>
-            </form>
-          ) : (
-          /* Tick rows, then print their QR labels or change them all at once. */
+          {/* Tick rows, then print their QR labels or change them all at once. */}
           <form action="/inventory/labels">
             <Section
-              title={`${assets.length}${assets.length === LIMIT ? "+" : ""} item${assets.length === 1 ? "" : "s"}`}
+              title={t(assets.length === 1 ? "{n} item" : "{n} items", { n: `${assets.length}${assets.length === LIMIT ? "+" : ""}` })}
               actions={
                 <div className="flex gap-2">
-                  <Link href={editHref} className="btn">
-                    <Pencil className="size-4" /> Edit table
-                  </Link>
                   <Link href={columnsHref} className="btn">
-                    <Columns3 className="size-4" /> Columns
+                    <Columns3 className="size-4" /> {t("Columns")}
                   </Link>
                   <button className="btn">
-                    <Printer className="size-4" /> Print labels
+                    <Printer className="size-4" /> {t("Print labels")}
                   </button>
                   <ConfirmButton
                     formAction={deleteAssets}
-                    message="Delete the selected items permanently, with their history? To keep the history, set their status to Retired instead."
+                    message={t("Delete the selected items permanently, with their history? To keep the history, set their status to Retired instead.")}
                     className="btn btn-danger"
-                    title="Delete selected"
+                    title={t("Delete selected")}
                   >
                     <Trash2 className="size-4" />
                   </ConfirmButton>
@@ -229,25 +199,25 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
               }
             >
               <div className="flex flex-wrap items-center gap-2 border-b border-line bg-panel-muted px-4 py-3 text-sm">
-                <span className="text-dim">Change selected:</span>
-                <select name="bulkStatus" defaultValue="" className="input w-auto" aria-label="New status">
-                  <option value="">Status…</option>
+                <span className="text-dim">{t("Change selected:")}</span>
+                <select name="bulkStatus" defaultValue="" className="input w-auto" aria-label={t("New status")}>
+                  <option value="">{t("Status…")}</option>
                   {ASSET_STATUSES.map((s) => (
                     <option key={s} value={s}>
-                      {label(s)}
+                      {label(s, locale)}
                     </option>
                   ))}
                 </select>
-                <select name="bulkLocation" defaultValue="" className="input w-auto" aria-label="New location">
-                  <option value="">Location…</option>
+                <select name="bulkLocation" defaultValue="" className="input w-auto" aria-label={t("New location")}>
+                  <option value="">{t("Location…")}</option>
                   {locations.map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.name}
                     </option>
                   ))}
                 </select>
-                <select name="bulkDept" defaultValue="" className="input w-auto" aria-label="New department">
-                  <option value="">Move to department…</option>
+                <select name="bulkDept" defaultValue="" className="input w-auto" aria-label={t("New department")}>
+                  <option value="">{t("Move to department…")}</option>
                   {departments.filter((d) => d.id !== dept.id).map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
@@ -256,39 +226,39 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
                 </select>
                 {columns.includes("assignedTo") && (
                   <>
-                    <input name="bulkAssigned" placeholder="Assign to…" className="input w-40" aria-label="Assign to" />
+                    <input name="bulkAssigned" placeholder={t("Assign to…")} className="input w-40" aria-label={t("Assign to")} />
                     <label className="flex items-center gap-1.5 text-dim">
-                      <input type="checkbox" name="bulkUnassign" /> Unassign
+                      <input type="checkbox" name="bulkUnassign" /> {t("Unassign")}
                     </label>
                   </>
                 )}
                 {settable.length > 0 && (
                   <>
-                    <select name="bulkField" defaultValue="" className="input w-auto" aria-label="Field to set">
-                      <option value="">Set field…</option>
+                    <select name="bulkField" defaultValue="" className="input w-auto" aria-label={t("Field to set")}>
+                      <option value="">{t("Set field…")}</option>
                       {settable.map((c) => (
                         <option key={c} value={c}>
-                          {columnLabel(c)}
+                          {columnLabel(c, locale)}
                         </option>
                       ))}
                     </select>
-                    <input name="bulkValue" placeholder="to (empty clears)" className="input w-40" aria-label="Value" />
+                    <input name="bulkValue" placeholder={t("to (empty clears)")} className="input w-40" aria-label={t("Value")} />
                   </>
                 )}
                 <button formAction={bulkUpdateAssets} className="btn">
-                  Apply
+                  {t("Apply")}
                 </button>
               </div>
 
               {assets.length === 0 ? (
                 <Empty>
                   {f.q ? (
-                    "Nothing matches."
+                    t("Nothing matches.")
                   ) : (
                     <>
-                      No {type} here.{" "}
+                      {t("No {type} here.", { type })}{" "}
                       <Link href={addHref} className="link">
-                        Add one
+                        {t("Add one")}
                       </Link>
                       .
                     </>
@@ -302,8 +272,8 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
                         <th className="w-8">
                           <SelectAll />
                         </th>
-                        {sortHeader("tag", "Tag")}
-                        {columns.map((c) => (c in ASSET_SORTS ? sortHeader(c, columnLabel(c)) : <th key={c}>{columnLabel(c)}</th>))}
+                        {sortHeader("tag", t("Tag"))}
+                        {columns.map((c) => (c in ASSET_SORTS ? sortHeader(c, columnLabel(c, locale)) : <th key={c}>{columnLabel(c, locale)}</th>))}
                       </tr>
                     </thead>
                     <tbody>
@@ -312,7 +282,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
                         return (
                           <tr key={a.id} className="hover:bg-panel-muted">
                             <td>
-                              <input type="checkbox" name="tag" value={a.tag} aria-label={`Select ${a.tag}`} />
+                              <input type="checkbox" name="tag" value={a.tag} aria-label={t("Select {tag}", { tag: a.tag })} />
                             </td>
                             <td className="font-mono text-xs whitespace-nowrap">
                               <Link href={`/inventory/${a.tag}`} className="link">
@@ -321,7 +291,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
                             </td>
                             {columns.map((c) => (
                               <td key={c} className={c === "name" ? undefined : "text-dim"}>
-                                {cell(a, c, extra, columns)}
+                                {cell(a, c, extra, columns, locale)}
                               </td>
                             ))}
                           </tr>
@@ -333,20 +303,19 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
               )}
             </Section>
           </form>
-          )}
         </>
       )}
     </>
   );
 }
 
-function cell(a: Asset & { location: Location | null }, key: string, extra: Record<string, string>, columns: string[]) {
+function cell(a: Asset & { location: Location | null }, key: string, extra: Record<string, string>, columns: string[], locale: Locale) {
   const custom = extraLabel(key);
   if (custom !== null) return extra[custom] ?? "—";
   const readings = parseReadings(a.readings);
   if (key === INK_COLUMN) return <InkLevels supplies={readings?.supplies ?? []} compact />;
   const reading = readingLabel(key);
-  if (reading === "Last read") return readings ? fmtDateTime(new Date(readings.readAt)) : "—";
+  if (reading === "Last read") return readings ? fmtDateTime(new Date(readings.readAt), locale) : "—";
   if (reading !== null) return readings?.fields[reading] ?? "—";
   switch (key) {
     case "name": {
@@ -366,7 +335,7 @@ function cell(a: Asset & { location: Location | null }, key: string, extra: Reco
     case "purchaseDate":
     case "warrantyUntil":
     case "updatedAt":
-      return a[key] ? fmtDate(a[key]) : "—";
+      return a[key] ? fmtDate(a[key], locale) : "—";
     case "assignedTo":
     case "manufacturer":
     case "model":
@@ -375,55 +344,5 @@ function cell(a: Asset & { location: Location | null }, key: string, extra: Reco
       return a[key] ?? "—";
     default:
       return "—";
-  }
-}
-
-/** An input for one cell in edit mode; read-only columns (printer readings, …) stay as text. */
-function editCell(
-  a: Asset & { location: Location | null },
-  key: string,
-  extra: Record<string, string>,
-  columns: string[],
-  locations: Location[],
-) {
-  const name = `${a.id}|${key}`;
-  const cls = "input min-w-32 px-2 py-1";
-  const custom = extraLabel(key);
-  if (isDeviceField(key) && isReadFromDevice(a)) return <span className="px-2 text-dim" title="Read from the printer">{cell(a, key, extra, columns)}</span>;
-  if (custom !== null) return <input name={name} defaultValue={extra[custom] ?? ""} aria-label={`${a.tag} ${custom}`} className={cls} />;
-  switch (key) {
-    case "name":
-    case "manufacturer":
-    case "model":
-    case "serialNumber":
-    case "assignedTo":
-    case "notes":
-      return <input name={name} defaultValue={a[key] ?? ""} required={key === "name"} aria-label={`${a.tag} ${columnLabel(key)}`} className={cls} />;
-    case "purchaseDate":
-    case "warrantyUntil":
-      return <input name={name} type="date" defaultValue={toLocalInput(a[key]).slice(0, 10)} aria-label={`${a.tag} ${columnLabel(key)}`} className={cls} />;
-    case "status":
-      return (
-        <select name={name} defaultValue={a.status} aria-label={`${a.tag} status`} className={cls}>
-          {ASSET_STATUSES.map((st) => (
-            <option key={st} value={st}>
-              {label(st)}
-            </option>
-          ))}
-        </select>
-      );
-    case "location":
-      return (
-        <select name={name} defaultValue={a.locationId ?? ""} aria-label={`${a.tag} location`} className={cls}>
-          <option value="">—</option>
-          {locations.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </select>
-      );
-    default:
-      return <span className="px-2 text-dim">{cell(a, key, extra, columns)}</span>;
   }
 }

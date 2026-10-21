@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DAY_KINDS, type CalendarDay } from "@/lib/schoolCalendar";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { INTL } from "@/i18n";
+import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 export type Series = { id: string; name: string; color: string };
@@ -19,7 +21,6 @@ export type Bucket = {
   cal?: CalendarDay;
 };
 
-const fmt = (n: number | null | undefined) => (n == null ? "–" : Math.round(n).toLocaleString("en-GB"));
 
 function niceMax(v: number) {
   if (v <= 0) return 10;
@@ -55,6 +56,8 @@ export function StackedBars({
   /** A scrolling chart opens on its last bars (latest dates); false opens on the first */
   startAtEnd?: boolean;
 }) {
+  const { t, locale } = useI18n();
+  const fmt = (n: number | null | undefined) => (n == null ? "–" : Math.round(n).toLocaleString(INTL[locale]));
   const scroller = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [hover, setHover] = useState<{
@@ -154,7 +157,7 @@ export function StackedBars({
             className="block w-full overflow-visible outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
             tabIndex={0}
             role="img"
-            aria-label="Bar chart. Use the left and right arrow keys to read each bar."
+            aria-label={t("Bar chart. Use the left and right arrow keys to read each bar.")}
             onPointerMove={(e) => pick(e.clientX, e.clientY, e.currentTarget.getBoundingClientRect())}
             onPointerLeave={() => setHover(null)}
             onBlur={() => setHover(null)}
@@ -237,7 +240,7 @@ export function StackedBars({
               ))}
               {series.length > 1 && (
                 <div className="flex justify-between border-t border-line pt-1">
-                  <span className="text-dim">Total</span>
+                  <span className="text-dim">{t("Total")}</span>
                   <b className="tabular-nums">{fmt(hb.total)}</b>
                 </div>
               )}
@@ -245,7 +248,7 @@ export function StackedBars({
               {hb.cal?.kind && (
                 <div className="mt-0.5 flex items-center gap-1.5 border-t border-line pt-1 font-medium">
                   <i className="h-1.5 w-3.5 shrink-0 rounded-sm" style={{ background: DAY_KINDS[hb.cal.kind].color }} />
-                  {DAY_KINDS[hb.cal.kind].name}
+                  {t(DAY_KINDS[hb.cal.kind].name)}
                 </div>
               )}
               {hb.cal?.notes.map((n) => (
@@ -289,11 +292,12 @@ function ScrollButton({
   disabled: boolean;
   onClick: () => void;
 }) {
+  const { t } = useI18n();
   const Icon = side === "left" ? ChevronLeft : ChevronRight;
   return (
     <button
       type="button"
-      aria-label={side === "left" ? "Earlier days" : "Later days"}
+      aria-label={side === "left" ? t("Earlier days") : t("Later days")}
       disabled={disabled}
       onClick={onClick}
       style={style}

@@ -7,6 +7,8 @@ import { fmtDate, fmtDateTime, fmtRelative, label, startOfToday, TICKET_PRIORITI
 import { prisma } from "@/lib/prisma";
 import { canViewTicket } from "@/lib/tickets";
 import { cn } from "@/lib/utils";
+import { activityText } from "@/i18n/activity";
+import { getI18n } from "@/i18n/server";
 import { addComment, closeOwnTicket, takeTicket, updateTicket, consumeSupply } from "../actions";
 import { StatusPills } from "./StatusPills";
 
@@ -16,8 +18,9 @@ import { StatusPills } from "./StatusPills";
  */
 export async function TicketDetail({ number, pane }: { number: number; pane?: { closeHref: string } }) {
   const user = await requireUser();
+  const { t, locale } = await getI18n();
   // In the pane a stale link shouldn't take the whole list down with it.
-  const missing = () => (pane ? <Empty>Ticket #{number} not found.</Empty> : notFound());
+  const missing = () => (pane ? <Empty>{t("Ticket #{number} not found.", { number })}</Empty> : notFound());
   if (!Number.isFinite(number)) return missing();
 
   const ticket = await prisma.ticket.findUnique({
@@ -66,7 +69,7 @@ export async function TicketDetail({ number, pane }: { number: number; pane?: { 
             <Badge value={ticket.status} />
             <Badge value={ticket.priority} />
             <span>
-              opened by {ticket.requester.name} · {fmtRelative(ticket.createdAt)}
+              {t("opened by {name}", { name: ticket.requester.name })} · {fmtRelative(ticket.createdAt, locale)}
             </span>
           </span>
         }
@@ -74,22 +77,22 @@ export async function TicketDetail({ number, pane }: { number: number; pane?: { 
           <>
             {pane && (
               <>
-                <Link href={`/tickets/${ticket.number}`} className="btn" title="Open as a full page">
+                <Link href={`/tickets/${ticket.number}`} className="btn" title={t("Open as a full page")}>
                   <Maximize2 className="size-4" />
                 </Link>
-                <Link href={pane.closeHref} scroll={false} className="btn" title="Close">
+                <Link href={pane.closeHref} scroll={false} className="btn" title={t("Close")}>
                   <X className="size-4" />
                 </Link>
               </>
             )}
             {agent && !assigneeIds.includes(user.id) && open && (
               <form action={takeTicket.bind(null, ticket.id)}>
-                <button className="btn btn-primary">{assigneeIds.length ? "Join" : "Take it"}</button>
+                <button className="btn btn-primary">{assigneeIds.length ? t("Join") : t("Take it")}</button>
               </form>
             )}
             {ticket.requesterId === user.id && ticket.status !== "closed" && (
               <form action={closeOwnTicket.bind(null, ticket.id)}>
-                <button className="btn">Mark as solved & close</button>
+                <button className="btn">{t("Mark as solved & close")}</button>
               </form>
             )}
           </>
@@ -102,19 +105,19 @@ export async function TicketDetail({ number, pane }: { number: number; pane?: { 
             <div className="p-5 text-sm whitespace-pre-wrap">{ticket.description}</div>
           </Section>
 
-          <Section title="Activity">
+          <Section title={t("Activity")}>
             <ol className="divide-y divide-line">
               {activity.map((a) =>
                 a.kind === "event" ? (
                   <li key={a.id} className="px-5 py-2 text-xs text-dim">
-                    <span className="font-medium text-fg">{a.author?.name ?? "System"}</span> {a.body} · {fmtDateTime(a.createdAt)}
+                    <span className="font-medium text-fg">{a.author?.name ?? t("System")}</span> {activityText(a.body, locale)} · {fmtDateTime(a.createdAt, locale)}
                   </li>
                 ) : (
                   <li key={a.id} className={cn("px-5 py-4", a.kind === "note" && "bg-amber-500/5")}>
                     <div className="mb-1 flex items-center gap-2 text-xs text-dim">
-                      <span className="font-medium text-fg">{a.author?.name ?? "Unknown"}</span>
-                      {fmtDateTime(a.createdAt)}
-                      {a.kind === "note" && <Badge tone="amber">Internal note</Badge>}
+                      <span className="font-medium text-fg">{a.author?.name ?? t("Unknown")}</span>
+                      {fmtDateTime(a.createdAt, locale)}
+                      {a.kind === "note" && <Badge tone="amber">{t("Internal note")}</Badge>}
                     </div>
                     <div className="text-sm whitespace-pre-wrap">{a.body}</div>
                   </li>
@@ -122,16 +125,16 @@ export async function TicketDetail({ number, pane }: { number: number; pane?: { 
               )}
             </ol>
             <form action={addComment.bind(null, ticket.id)} className="space-y-2 border-t border-line p-4">
-              <textarea name="body" required rows={3} placeholder="Write a reply…" className="input" />
+              <textarea name="body" required rows={3} placeholder={t("Write a reply…")} className="input" />
               <div className="flex items-center justify-between gap-2">
                 {agent ? (
                   <label className="flex items-center gap-2 text-xs text-dim">
-                    <input type="checkbox" name="internal" /> Internal note (only agents see it)
+                    <input type="checkbox" name="internal" /> {t("Internal note (only agents see it)")}
                   </label>
                 ) : (
                   <span />
                 )}
-                <button className="btn btn-primary">Send</button>
+                <button className="btn btn-primary">{t("Send")}</button>
               </div>
             </form>
           </Section>
@@ -139,28 +142,28 @@ export async function TicketDetail({ number, pane }: { number: number; pane?: { 
 
         <aside className="space-y-6">
           {agent ? (
-            <Section title="Manage">
+            <Section title={t("Manage")}>
               <form action={updateTicket.bind(null, ticket.id)} className="space-y-3 p-4">
                 <div>
-                  <span className="label">Status</span>
+                  <span className="label">{t("Status")}</span>
                   <StatusPills
                     key={ticket.status}
                     name="status"
                     defaultValue={ticket.status}
-                    options={TICKET_STATUSES.map((s) => ({ value: s, label: label(s), className: toneClasses(s) }))}
+                    options={TICKET_STATUSES.map((s) => ({ value: s, label: label(s, locale), className: toneClasses(s) }))}
                   />
                 </div>
-                <Field label="Priority">
+                <Field label={t("Priority")}>
                   <select name="priority" defaultValue={ticket.priority} className="input">
                     {TICKET_PRIORITIES.map((s) => (
                       <option key={s} value={s}>
-                        {label(s)}
+                        {label(s, locale)}
                       </option>
                     ))}
                   </select>
                 </Field>
                 <div>
-                  <span className="label">Assigned to</span>
+                  <span className="label">{t("Assigned to")}</span>
                   <div className="max-h-44 space-y-1 overflow-y-auto rounded-lg border border-line p-2" key={assigneeIds.join()}>
                     {agents.map((a) => (
                       <label key={a.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-sm hover:bg-panel-muted">
@@ -172,15 +175,15 @@ export async function TicketDetail({ number, pane }: { number: number; pane?: { 
                           className="size-4 accent-accent"
                         />
                         {a.name}
-                        {a.id === user.id && <span className="text-xs text-dim">(me)</span>}
+                        {a.id === user.id && <span className="text-xs text-dim">{t("(me)")}</span>}
                       </label>
                     ))}
                   </div>
                 </div>
-                <Field label="Due date">
+                <Field label={t("Due date")}>
                   <input name="dueAt" type="date" defaultValue={toLocalInput(ticket.dueAt).slice(0, 10)} className="input" />
                 </Field>
-                <Field label="Category">
+                <Field label={t("Category")}>
                   <select name="categoryId" defaultValue={ticket.categoryId ?? ""} className="input">
                     <option value="">—</option>
                     {ticket.department.categories.map((c) => (
@@ -190,7 +193,7 @@ export async function TicketDetail({ number, pane }: { number: number; pane?: { 
                     ))}
                   </select>
                 </Field>
-                <Field label="Department">
+                <Field label={t("Department")}>
                   <select name="departmentId" defaultValue={ticket.departmentId} className="input">
                     {departments.map((d) => (
                       <option key={d.id} value={d.id}>
@@ -199,24 +202,24 @@ export async function TicketDetail({ number, pane }: { number: number; pane?: { 
                     ))}
                   </select>
                 </Field>
-                <button className="btn btn-primary w-full">Save</button>
+                <button className="btn btn-primary w-full">{t("Save")}</button>
               </form>
             </Section>
           ) : null}
 
-          <Section title="Details">
+          <Section title={t("Details")}>
             <dl className="space-y-3 p-4 text-sm">
-              <Detail term="Requester">
+              <Detail term={t("Requester")}>
                 {ticket.requester.name}
                 <div className="text-xs text-dim">{ticket.requester.email}</div>
               </Detail>
-              <Detail term={ticket.assignees.length > 1 ? "Assignees" : "Assignee"}>
-                {ticket.assignees.length ? ticket.assignees.map((a) => <div key={a.userId}>{a.user.name}</div>) : "Unassigned"}
+              <Detail term={ticket.assignees.length > 1 ? t("Assignees") : t("Assignee")}>
+                {ticket.assignees.length ? ticket.assignees.map((a) => <div key={a.userId}>{a.user.name}</div>) : t("Unassigned")}
               </Detail>
-              <Detail term="Category">{ticket.category?.name ?? "—"}</Detail>
-              <Detail term="Location">{ticket.location?.name ?? "—"}</Detail>
+              <Detail term={t("Category")}>{ticket.category?.name ?? "—"}</Detail>
+              <Detail term={t("Location")}>{ticket.location?.name ?? "—"}</Detail>
               {ticket.asset && (
-                <Detail term="Asset">
+                <Detail term={t("Asset")}>
                   {agent ? (
                     <Link href={`/inventory/${ticket.asset.tag}`} className="link">
                       {ticket.asset.tag} · {ticket.asset.name}
@@ -227,28 +230,28 @@ export async function TicketDetail({ number, pane }: { number: number; pane?: { 
                 </Detail>
               )}
               {ticket.event && (
-                <Detail term="Event">
+                <Detail term={t("Event")}>
                   <Link href={`/events/${ticket.event.id}`} className="link">
                     {ticket.event.title}
                   </Link>
-                  <div className="text-xs text-dim">{fmtDateTime(ticket.event.startsAt)}</div>
+                  <div className="text-xs text-dim">{fmtDateTime(ticket.event.startsAt, locale)}</div>
                 </Detail>
               )}
               {ticket.dueAt && (
-                <Detail term="Due">
+                <Detail term={t("Due")}>
                   <span className={cn(open && ticket.dueAt < startOfToday() && "font-medium text-red-600 dark:text-red-400")}>
-                    {fmtDate(ticket.dueAt)}
-                    {open && ticket.dueAt < startOfToday() && " · overdue"}
+                    {fmtDate(ticket.dueAt, locale)}
+                    {open && ticket.dueAt < startOfToday() && ` · ${t("overdue")}`}
                   </span>
                 </Detail>
               )}
-              <Detail term="Opened">{fmtDateTime(ticket.createdAt)}</Detail>
-              {ticket.resolvedAt && <Detail term="Resolved">{fmtDateTime(ticket.resolvedAt)}</Detail>}
+              <Detail term={t("Opened")}>{fmtDateTime(ticket.createdAt, locale)}</Detail>
+              {ticket.resolvedAt && <Detail term={t("Resolved")}>{fmtDateTime(ticket.resolvedAt, locale)}</Detail>}
             </dl>
           </Section>
 
           {agent && supplies.length > 0 && (
-            <Section title="Use supplies">
+            <Section title={t("Use supplies")}>
               <form action={consumeSupply.bind(null, ticket.id)} className="flex gap-2 p-4">
                 <select name="supplyId" required className="input min-w-0">
                   {supplies.map((s) => (
@@ -258,7 +261,7 @@ export async function TicketDetail({ number, pane }: { number: number; pane?: { 
                   ))}
                 </select>
                 <input name="quantity" type="number" min={1} defaultValue={1} className="input w-16" />
-                <button className="btn">Use</button>
+                <button className="btn">{t("Use")}</button>
               </form>
             </Section>
           )}

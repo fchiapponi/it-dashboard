@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { T } from "@/i18n";
+import { useI18n } from "@/i18n/client";
 
 function nextFiveDeadline(now: Date): Date {
   const target = new Date(now);
@@ -18,20 +20,20 @@ function nextFridayFive(now: Date): Date {
   return target;
 }
 
-function formatHMS(ms: number): string {
+function formatHMS(ms: number, t: T): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   const s = totalSeconds % 60;
-  return `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
+  return t("{h}h {m}m {s}s", { h, m: String(m).padStart(2, "0"), s: String(s).padStart(2, "0") });
 }
 
-function formatDH(ms: number): string {
+function formatDH(ms: number, t: T): string {
   const totalHours = Math.max(0, Math.floor(ms / (1000 * 60 * 60)));
   const d = Math.floor(totalHours / 24);
   const h = totalHours % 24;
-  if (d === 0 && h === 0) return "it's Friday 17:00";
-  return d > 0 ? `${d}d ${h}h` : `${h}h`;
+  if (d === 0 && h === 0) return t("it's Friday 17:00");
+  return d > 0 ? t("{d}d {h}h", { d, h }) : t("{h}h", { h });
 }
 
 function nextChristmas(now: Date): Date {
@@ -40,13 +42,14 @@ function nextChristmas(now: Date): Date {
   return target;
 }
 
-function formatDays(ms: number): string {
+function formatDays(ms: number, t: T): string {
   const days = Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
-  if (days === 0) return "today!";
-  return `${days}d`;
+  if (days === 0) return t("today!");
+  return t("{d}d", { d: days });
 }
 
 export function Countdowns() {
+  const { t } = useI18n();
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -68,16 +71,16 @@ export function Countdowns() {
   return (
     <div className="flex items-center gap-3 text-[0.625rem]">
       <div className="flex items-center gap-1.5">
-        <span className="text-[var(--text-faint)] uppercase tracking-wider">17:00 in</span>
-        <span className="tabular-nums text-[var(--amber)]">{formatHMS(toFive)}</span>
+        <span className="text-[var(--text-faint)] uppercase tracking-wider">{t("17:00 in")}</span>
+        <span className="tabular-nums text-[var(--amber)]">{formatHMS(toFive, t)}</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="text-[var(--text-faint)] uppercase tracking-wider">Friday 17:00 in</span>
-        <span className="tabular-nums text-[var(--cyan)]">{formatDH(toFridayFive)}</span>
+        <span className="text-[var(--text-faint)] uppercase tracking-wider">{t("Friday 17:00 in")}</span>
+        <span className="tabular-nums text-[var(--cyan)]">{formatDH(toFridayFive, t)}</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="text-[var(--text-faint)] uppercase tracking-wider">Christmas in</span>
-        <span className="tabular-nums text-[var(--accent)]">{formatDays(toChristmas)}</span>
+        <span className="text-[var(--text-faint)] uppercase tracking-wider">{t("Christmas in")}</span>
+        <span className="tabular-nums text-[var(--accent)]">{formatDays(toChristmas, t)}</span>
       </div>
     </div>
   );

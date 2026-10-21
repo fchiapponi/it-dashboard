@@ -14,12 +14,14 @@ import {
 } from "@/lib/assets";
 import { isAgentOf, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getI18n } from "@/i18n/server";
 import { ColumnEditor } from "./ColumnEditor";
 
 /** Choose, order and rename the columns of one list (?dept=it&type=Printer). */
 export default async function ListColumnsPage({ searchParams }: PageProps<"/inventory/columns">) {
   const user = await requireUser();
   const sp = await searchParams;
+  const { t, locale } = await getI18n();
   const type = typeof sp.type === "string" ? sp.type : "";
   const dept = typeof sp.dept === "string" ? await prisma.department.findUnique({ where: { slug: sp.dept } }) : null;
   if (!dept || !type || !isAgentOf(user, dept.id)) notFound();
@@ -32,9 +34,9 @@ export default async function ListColumnsPage({ searchParams }: PageProps<"/inve
   // Only custom field columns can be renamed; what the printer reports is read-only.
   const toColumn = (key: string) => ({
     key,
-    label: columnLabel(key),
+    label: columnLabel(key, locale),
     custom: extraLabel(key) !== null,
-    note: isReadOnlyColumn(key) ? "read from the printer" : extraLabel(key) !== null ? "custom field" : "",
+    note: isReadOnlyColumn(key) ? t("read from the printer") : extraLabel(key) !== null ? t("custom field") : "",
   });
   const available = [
     ...Object.keys(FIELD_COLUMNS),
@@ -44,7 +46,10 @@ export default async function ListColumnsPage({ searchParams }: PageProps<"/inve
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title={`Columns · ${dept.name} ${type}`} subtitle="Pick what this list shows. Hiding a column never deletes its data." />
+      <PageHeader
+        title={`${t("Columns")} · ${dept.name} ${type}`}
+        subtitle={t("Pick what this list shows. Hiding a column never deletes its data.")}
+      />
       <ColumnEditor
         departmentId={dept.id}
         type={type}

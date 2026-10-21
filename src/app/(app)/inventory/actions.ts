@@ -2,12 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { columnLabel, DEVICE_FIELDS, extraLabel, FIELD_COLUMNS, isDeviceField, isReadFromDevice, isPrinter, parseExtra, PRINTER_COLUMNS, stringifyExtra } from "@/lib/assets";
+import { columnLabel, defaultColumns, DEVICE_FIELDS, extraLabel, FIELD_COLUMNS, isDeviceField, isReadFromDevice, isPrinter, parseExtra, PRINTER_COLUMNS, stringifyExtra } from "@/lib/assets";
 import { assert, isAgentOf, requireUser } from "@/lib/auth";
-import { ASSET_STATUSES, fromLocalInput, int, label, oneOf, req, str, toLocalInput } from "@/lib/format";
+import { ASSET_STATUSES, fromLocalInput, int, label, oneOf, req, str } from "@/lib/format";
 import { ipField } from "@/lib/printerSnmp";
 import { fillFromPrinter, refreshPrinters } from "@/lib/printers";
 import { prisma } from "@/lib/prisma";
+import { getI18n } from "@/i18n/server";
 
 async function nextAssetTag() {
   const last = await prisma.asset.findFirst({ where: { tag: { startsWith: "TAS-" } }, orderBy: { tag: "desc" } });
@@ -161,87 +162,6 @@ export async function bulkUpdateAssets(form: FormData) {
 }
 
 const TEXT_FIELDS = ["name", "manufacturer", "model", "serialNumber", "assignedTo", "notes"] as const;
-const DATE_FIELDS = ["purchaseDate", "warrantyUntil"] as const;
-
-/**
- * Saves the inventory table in edit mode. Inputs are named "<assetId>|<column>"
- * and only cells that actually changed are written.
- */
-export async function saveTable(form: FormData) {
-  const user = await requireUser();
-  const byAsset = new Map<string, Map<string, string>>();
-  for (const [name, raw] of form.entries()) {
-    const [id, column] = name.split("|", 2);
-    if (!column || typeof raw !== "string") continue;
-    if (!byAsset.has(id)) byAsset.set(id, new Map());
-    byAsset.get(id)!.set(column, raw.trim());
-  }
-
-  const assets = await prisma.asset.findMany({ where: { id: { in: [...byAsset.keys()] } } });
-  for (const a of assets) assert(isAgentOf(user, a.departmentId));
-  const locations = new Map((await prisma.location.findMany()).map((l) => [l.id, l.name]));
-
-  const updates = assets.flatMap((a) => {
-    const cells = byAsset.get(a.id)!;
-    const data: Record<string, unknown> = {};
-    const changes: string[] = [];
-    for (const f of TEXT_FIELDS) {
-      if (!cells.has(f) || (isDeviceField(f) && isReadFromDevice(a))) continue;
-      const v = cells.get(f) || null;
-      if (f === "name" && !v) continue; // a name is required
-      if (v !== (a[f] ?? null)) {
-        data[f] = v;
-        changes.push(f === "assignedTo" ? (v ? `assigned to ${v}` : "returned (unassigned)") : `changed ${columnLabel(f)}`);
-      }
-    }
-    for (const f of DATE_FIELDS) {
-      if (!cells.has(f)) continue;
-      // Compare as school-time days (YYYY-MM-DD), the way the date inputs show them.
-      const day = cells.get(f) || null;
-      if (day !== (a[f] ? toLocalInput(a[f]).slice(0, 10) : null)) {
-        data[f] = fromLocalInput(day);
-        changes.push(`changed ${columnLabel(f)}`);
-      }
-    }
-    if (cells.has("status")) {
-      const v = oneOf(cells.get("status") ?? null, ASSET_STATUSES, a.status as (typeof ASSET_STATUSES)[number]);
-      if (v !== a.status) {
-        data.status = v;
-        changes.push(`changed status to ${label(v)}`);
-      }
-    }
-    if (cells.has("location")) {
-      const v = cells.get("location") || null;
-      if (v !== a.locationId && (!v || locations.has(v))) {
-        data.locationId = v;
-        changes.push(`moved to ${v ? locations.get(v) : "no location"}`);
-      }
-    }
-    const extra = parseExtra(a.extra);
-    let extraChanged = false;
-    for (const [col, v] of cells) {
-      const key = extraLabel(col);
-      if (key === null || (extra[key] ?? "") === v) continue;
-      extra[key] = v;
-      extraChanged = true;
-      changes.push(`changed ${key}`);
-    }
-    if (extraChanged) data.extra = stringifyExtra(extra);
-    if (!changes.length) return [];
-    return [
-      prisma.asset.update({
-        where: { id: a.id },
-        data: { ...data, activity: { create: { actorId: user.id, body: `${changes.join(", ")} (table edit)` } } },
-      }),
-    ];
-  });
-  if (updates.length) await prisma.$transaction(updates);
-
-  const back = str(form, "back");
-  revalidatePath("/inventory");
-  redirect(back?.startsWith("/inventory") ? back : "/inventory");
-}
-
 /** Permanently removes the ticked assets (retiring is usually the better choice). */
 export async function deleteAssets(form: FormData) {
   const user = await requireUser();
@@ -286,19 +206,37 @@ export async function saveListColumns(departmentId: string, type: string, column
   revalidatePath("/inventory");
 }
 
+/** Adds an empty list to a department's inventory and opens it. */
+export async function createList(form: FormData) {
+  const user = await requireUser();
+  const departmentId = req(form, "departmentId");
+  assert(isAgentOf(user, departmentId));
+  const type = req(form, "type");
+  const dept = await prisma.department.findUniqueOrThrow({ where: { id: departmentId } });
+
+  await prisma.assetList.upsert({
+    where: { departmentId_type: { departmentId, type } },
+    create: { departmentId, type, columns: JSON.stringify(defaultColumns(type, [])) },
+    update: {},
+  });
+  revalidatePath("/inventory");
+  redirect(`/inventory?dept=${dept.slug}&type=${encodeURIComponent(type)}`);
+}
+
 // ---------------------------------------------------------------- printers
 
 export async function readPrinterDetails(assetId: string): Promise<{ ok: boolean; message: string }> {
   const user = await requireUser();
   const asset = await prisma.asset.findUniqueOrThrow({ where: { id: assetId } });
   assert(isAgentOf(user, asset.departmentId));
+  const { t } = await getI18n();
   try {
     await fillFromPrinter(asset, user.id);
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Couldn't read the printer." };
+    return { ok: false, message: e instanceof Error ? e.message : t("Couldn't read the printer.") };
   }
   revalidatePath(`/inventory/${asset.tag}`);
-  return { ok: true, message: "Updated from the printer." };
+  return { ok: true, message: t("Updated from the printer.") };
 }
 
 /** Re-reads every printer with an IP (toner levels, page counts) in parallel. */
@@ -306,9 +244,11 @@ export async function refreshAllPrinters(): Promise<{ ok: boolean; message: stri
   const user = await requireUser();
   const { total, failed } = await refreshPrinters(user.isAdmin ? {} : { departmentId: { in: user.departmentIds } });
   revalidatePath("/inventory");
+  const { t } = await getI18n();
+  const updated = t("{n} of {total} printers updated", { n: total - failed.length, total });
   return {
     ok: failed.length === 0,
-    message: `${total - failed.length} of ${total} printers updated${failed.length ? `; no answer from ${failed.join(", ")}` : ""}.`,
+    message: failed.length ? `${updated}; ${t("no answer from {tags}", { tags: failed.join(", ") })}.` : `${updated}.`,
   };
 }
 

@@ -8,6 +8,8 @@ import { TerminalPanel } from "@/components/monitor/TerminalPanel";
 import { StatusBadge, statusColor, type Status } from "@/components/monitor/StatusBadge";
 import { Clock } from "@/components/monitor/Clock";
 import { Countdowns } from "@/components/monitor/Countdowns";
+import type { Message, T } from "@/i18n";
+import { useI18n } from "@/i18n/client";
 
 const LOW_SUPPLY_THRESHOLD = 2;
 
@@ -18,7 +20,7 @@ const INK_LABELS: Record<string, string> = {
   yellow: "Y",
 };
 
-const TYPE_LABELS: Record<string, string> = {
+const TYPE_LABELS: Record<string, Message> = {
   paper: "Paper",
   drum: "Drum",
   waste: "Waste",
@@ -140,16 +142,17 @@ function supplyCode(supply: { name: string }): string | null {
   return /\d/.test(last) && /[a-z]/i.test(last) ? last : null;
 }
 
-function supplyShortLabel(supply: { name: string; type: string }): string {
+function supplyShortLabel(supply: { name: string; type: string }, t: T): string {
   const lower = supply.name.toLowerCase();
   if (supply.type === "ink" || supply.type === "toner") {
     const match = Object.keys(INK_LABELS).find((color) => lower.includes(color));
     if (match) return INK_LABELS[match];
   }
-  return TYPE_LABELS[supply.type] ?? supply.name.slice(0, 3).toUpperCase();
+  return TYPE_LABELS[supply.type] ? t(TYPE_LABELS[supply.type]) : supply.name.slice(0, 3).toUpperCase();
 }
 
 export default function TvDashboardPage() {
+  const { t } = useI18n();
   const { data: printers } = usePrinters();
   const { data: trelloLists } = useTrello();
   // Finished work isn't worth screen space on the TV.
@@ -182,7 +185,7 @@ export default function TvDashboardPage() {
     // vendor text is dropped; other faults (jam, door open, …) keep theirs.
     const faultText = fault && tonerSupplies.length > 0 && /\b(ink|toner)\b/i.test(fault) ? null : fault;
     const baseLabelCounts = tonerSupplies.reduce<Record<string, number>>((acc, s) => {
-      const base = supplyShortLabel(s);
+      const base = supplyShortLabel(s, t);
       acc[base] = (acc[base] ?? 0) + 1;
       return acc;
     }, {});
@@ -193,7 +196,7 @@ export default function TvDashboardPage() {
           <span className="truncate text-[0.6875rem] font-bold text-[var(--text-primary)]">{p.name}</span>
           {p.pageCount !== null && (
             <span
-              title="Pages printed"
+              title={t("Pages printed")}
               className="ml-auto shrink-0 text-[0.5625rem] tabular-nums text-[var(--text-dim)]"
             >
               {p.pageCount.toLocaleString("it-IT")}
@@ -226,7 +229,7 @@ export default function TvDashboardPage() {
             }
           >
             {tonerSupplies.map((s) => {
-              const base = supplyShortLabel(s);
+              const base = supplyShortLabel(s, t);
               const color = swatchColor(base);
               baseLabelSeen[base] = (baseLabelSeen[base] ?? 0) + 1;
               const label = baseLabelCounts[base] > 1 ? `${base}${baseLabelSeen[base]}` : base;
@@ -284,7 +287,7 @@ export default function TvDashboardPage() {
             <div className="text-sm font-bold tracking-[0.15em] text-[var(--accent)] glow-text">
               TASIS
             </div>
-            <div className="text-[0.5rem] tracking-[0.3em] text-[var(--text-faint)]">CONTROL ROOM</div>
+            <div className="text-[0.5rem] tracking-[0.3em] text-[var(--text-faint)] uppercase">{t("Control room")}</div>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -295,37 +298,37 @@ export default function TvDashboardPage() {
 
       <div className="grid grid-cols-6 gap-3">
         <StatTile
-          label="Open Trello cards"
+          label={t("Open Trello cards")}
           value={openTrelloCards}
           icon={<ListTodo className="h-4 w-4" />}
           tone="cyan"
         />
         <StatTile
-          label="Pages printed"
+          label={t("Pages printed")}
           value={totalPagesPrinted.toLocaleString("it-IT")}
           icon={<FileText className="h-4 w-4" />}
           tone="cyan"
         />
         <StatTile
-          label="Printers online"
+          label={t("Printers online")}
           value={`${printersOnline}/${printers?.length ?? 0}`}
           icon={<Printer className="h-4 w-4" />}
           tone="accent"
         />
         <StatTile
-          label="Printer alert"
+          label={t("Printer alert")}
           value={printersWithAlert.length}
           icon={<AlertTriangle className="h-4 w-4" />}
           tone={printersWithAlert.length ? "amber" : "accent"}
         />
         <StatTile
-          label="Printer error"
+          label={t("Printer error")}
           value={printersWithError.length}
           icon={<AlertTriangle className="h-4 w-4" />}
           tone={printersWithError.length ? "red" : "accent"}
         />
         <StatTile
-          label="Supply empty"
+          label={t("Supply empty")}
           value={printersWithEmptySupply.length}
           icon={<AlertTriangle className="h-4 w-4" />}
           tone={printersWithEmptySupply.length ? "red" : "accent"}
@@ -333,9 +336,9 @@ export default function TvDashboardPage() {
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
-        <TerminalPanel title="trello board" bodyClassName="overflow-hidden p-0">
+        <TerminalPanel title={t("trello board")} bodyClassName="overflow-hidden p-0">
           <div className="no-scrollbar h-full columns-2 gap-3 overflow-y-auto p-2 [column-fill:_balance]">
-            {!openTrelloLists?.length && <p className="text-base text-[var(--text-dim)]">No Trello data.</p>}
+            {!openTrelloLists?.length && <p className="text-base text-[var(--text-dim)]">{t("No Trello data.")}</p>}
             {openTrelloLists?.map((list) => (
               <div key={list.id} className="glass-panel mb-3 break-inside-avoid rounded-[6px]">
                 <div className="truncate border-b border-white/10 px-2.5 py-1 text-xs tracking-[0.1em] text-[var(--text-dim)] uppercase">
@@ -357,12 +360,12 @@ export default function TvDashboardPage() {
         </TerminalPanel>
 
         <TerminalPanel
-          title={`printers (${printers?.length ?? 0})`}
+          title={`${t("printers")} (${printers?.length ?? 0})`}
           bodyClassName="overflow-hidden p-0"
         >
           <div className="no-scrollbar flex h-full flex-col gap-1.5 overflow-y-auto p-2">
             {!printers?.length && (
-              <p className="text-xs text-[var(--text-dim)]">No printers configured.</p>
+              <p className="text-xs text-[var(--text-dim)]">{t("No printers configured.")}</p>
             )}
             {offlinePrinters.length > 0 && (
               <>

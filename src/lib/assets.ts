@@ -1,8 +1,10 @@
 import type { Prisma } from "@/generated/prisma";
 import type { PrinterFault, Supply } from "@/lib/printerSnmp";
 import { prisma } from "@/lib/prisma";
+import { isMessage, translate, type Locale } from "@/i18n";
 
-export type AssetFilters = { q: string; status: string; type: string; dept: string; sort: string };
+// building: a Location id, or "none" for items without one.
+export type AssetFilters = { q: string; status: string; type: string; dept: string; building: string; sort: string };
 
 export const ASSET_SORTS: Record<string, Prisma.AssetOrderByWithRelationInput[]> = {
   tag: [{ tag: "asc" }],
@@ -48,8 +50,13 @@ export const readingLabel = (key: string) => (key.startsWith(READING) ? key.slic
 export const PRINTER_COLUMNS = [INK_COLUMN, ...["Ink / toner", "Page count", "Cartridges", "Hostname", "MAC address", "Last read"].map((l) => `${READING}${l}`)];
 export const isReadOnlyColumn = (key: string) => key === INK_COLUMN || readingLabel(key) !== null;
 
-export const columnLabel = (key: string) =>
-  key === INK_COLUMN ? "Ink" : (readingLabel(key) ?? extraLabel(key) ?? FIELD_COLUMNS[key as FieldColumn] ?? key);
+/** A column's heading; custom field labels are shown as their owners typed them. */
+export function columnLabel(key: string, locale: Locale = "en") {
+  const custom = extraLabel(key);
+  if (custom !== null) return custom;
+  const text = key === INK_COLUMN ? "Ink" : (readingLabel(key) ?? FIELD_COLUMNS[key as FieldColumn] ?? key);
+  return isMessage(text) ? translate(locale, text) : text;
+}
 
 /** Fields the printer reader fills in; once a device has been read they can't be edited by hand. */
 export const DEVICE_FIELDS = ["manufacturer", "model", "serialNumber"] as const;
@@ -124,7 +131,14 @@ export async function savedColumns(departmentId: string, type: string): Promise<
 export function readAssetFilters(sp: Record<string, string | string[] | undefined>): AssetFilters {
   const get = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string).trim() : "");
   const sort = get("sort");
-  return { q: get("q"), status: get("status"), type: get("type"), dept: get("dept"), sort: sort in ASSET_SORTS ? sort : "tag" };
+  return {
+    q: get("q"),
+    status: get("status"),
+    type: get("type"),
+    dept: get("dept"),
+    building: get("building"),
+    sort: sort in ASSET_SORTS ? sort : "tag",
+  };
 }
 
 export function assetWhere(f: AssetFilters): Prisma.AssetWhereInput {
@@ -147,6 +161,7 @@ export function assetWhere(f: AssetFilters): Prisma.AssetWhereInput {
   else where.push({ status: { not: "retired" } });
   if (f.type) where.push({ type: f.type });
   if (f.dept) where.push({ department: { slug: f.dept } });
+  if (f.building) where.push({ locationId: f.building === "none" ? null : f.building });
   return { AND: where };
 }
 
@@ -195,7 +210,8 @@ export async function fieldLabelsFor(type?: string | null, departmentId?: string
   const [columns, assets] = await Promise.all([
     type && departmentId ? savedColumns(departmentId, type) : null,
     prisma.asset.findMany({
-      where: { extra: { not: null }, ...(type ? { type } : {}) },
+      // Only this department's items: IT's "IP address" isn't a Kitchen field.
+      where: { extra: { not: null }, ...(type ? { type } : {}), ...(departmentId ? { departmentId } : {}) },
       select: { extra: true },
       orderBy: { updatedAt: "desc" },
       take: 300,

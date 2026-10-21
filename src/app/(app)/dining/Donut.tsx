@@ -1,19 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { INTL } from "@/i18n";
+import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 export type Slice = { id: string; name: string; color: string; value: number; note?: string };
 
-const fmt = (n: number) => Math.round(n).toLocaleString("en-GB");
 const pct = (v: number, total: number) => `${total ? Math.round((v / total) * 100) : 0}%`;
 
 /** Ring for part-to-whole at a glance (keep it to 6 slices or fewer), with a legend that names every slice. */
 export function Donut({ slices, unit, size = 152 }: { slices: Slice[]; unit: string; size?: number }) {
+  const { t, locale } = useI18n();
+  const fmt = (n: number) => Math.round(n).toLocaleString(INTL[locale]);
   const [active, setActive] = useState<string | null>(null);
   const shown = slices.filter((s) => s.value > 0);
   const total = shown.reduce((a, s) => a + s.value, 0);
-  if (!total) return <div className="px-4 py-10 text-center text-sm text-dim">No meals recorded for this selection.</div>;
+  if (!total) return <div className="px-4 py-10 text-center text-sm text-dim">{t("No meals recorded for this selection.")}</div>;
 
   const r = size / 2,
     ring = 22,

@@ -1,8 +1,13 @@
+import { INTL, translate, type Locale, type Message } from "@/i18n";
+
 const TZ = "Europe/Zurich";
 
-export function fmtDateTime(d: Date | null | undefined) {
+// Each formatter takes the reader's locale; without one it writes English,
+// as for emails and the activity log.
+
+export function fmtDateTime(d: Date | null | undefined, locale: Locale = "en") {
   if (!d) return "—";
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(INTL[locale], {
     timeZone: TZ,
     day: "2-digit",
     month: "short",
@@ -12,25 +17,25 @@ export function fmtDateTime(d: Date | null | undefined) {
   }).format(d);
 }
 
-export function fmtDate(d: Date | null | undefined) {
+export function fmtDate(d: Date | null | undefined, locale: Locale = "en") {
   if (!d) return "—";
-  return new Intl.DateTimeFormat("en-GB", { timeZone: TZ, day: "2-digit", month: "short", year: "numeric" }).format(d);
+  return new Intl.DateTimeFormat(INTL[locale], { timeZone: TZ, day: "2-digit", month: "short", year: "numeric" }).format(d);
 }
 
-export function fmtTime(d: Date | null | undefined) {
+export function fmtTime(d: Date | null | undefined, locale: Locale = "en") {
   if (!d) return "—";
-  return new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(d);
+  return new Intl.DateTimeFormat(INTL[locale], { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(d);
 }
 
-export function fmtRelative(d: Date) {
+export function fmtRelative(d: Date, locale: Locale = "en") {
   const mins = Math.round((Date.now() - d.getTime()) / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins} min ago`;
+  if (mins < 1) return translate(locale, "just now");
+  if (mins < 60) return translate(locale, "{n} min ago", { n: mins });
   const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours} h ago`;
+  if (hours < 24) return translate(locale, "{n} h ago", { n: hours });
   const days = Math.round(hours / 24);
-  if (days < 30) return `${days} d ago`;
-  return fmtDate(d);
+  if (days < 30) return translate(locale, "{n} d ago", { n: days });
+  return fmtDate(d, locale);
 }
 
 /** Value for <input type="datetime-local"> in school time. */
@@ -105,7 +110,7 @@ export const TICKET_PRIORITIES = ["low", "normal", "high", "urgent"] as const;
 export const ASSET_STATUSES = ["in_use", "in_stock", "repair", "retired"] as const;
 export const EVENT_STATUSES = ["requested", "confirmed", "cancelled"] as const;
 
-export const LABELS: Record<string, string> = {
+export const LABELS: Record<string, Message> = {
   open: "Open",
   in_progress: "In progress",
   waiting: "Waiting",
@@ -128,7 +133,7 @@ export const LABELS: Record<string, string> = {
   returned: "Returned to sender",
 };
 
-export const label = (key: string) => LABELS[key] ?? key;
+export const label = (key: string, locale: Locale = "en") => (LABELS[key] ? translate(locale, LABELS[key]) : key);
 
 export const TONES: Record<string, "blue" | "amber" | "green" | "gray" | "red" | "violet" | "cyan"> = {
   open: "blue",
