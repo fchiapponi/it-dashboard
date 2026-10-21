@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { PrintButton } from "@/components/PrintButton";
 import { isAgent, requireUser } from "@/lib/auth";
@@ -6,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { assetQrSvg } from "@/lib/qr";
 import { cn } from "@/lib/utils";
 import { getI18n } from "@/i18n/server";
+import { LABEL_FORMAT_COOKIE, LabelPrint } from "./LabelPrint";
 
 /** Page CSS for label printers: one label per page, landscape, no margins. */
 const rollPage = (size: string) => `
@@ -48,7 +50,11 @@ const ROLLS = {
   },
 } as const;
 
-/** Printable QR labels for the assets passed as ?tag=…&tag=…, as an A4 sheet or for a label printer (?format=ql|pt). */
+/**
+ * Printable QR labels for the assets passed as ?tag=…&tag=…, as an A4 sheet or
+ * for a label printer (?format=a4|ql|pt, else the last one used). ?print=1 opens
+ * the print dialog straight away.
+ */
 export default async function LabelsPage({ searchParams }: PageProps<"/inventory/labels">) {
   const user = await requireUser();
   if (!isAgent(user)) notFound();
@@ -56,25 +62,28 @@ export default async function LabelsPage({ searchParams }: PageProps<"/inventory
   const params = await searchParams;
   const raw = params.tag;
   const tags = (Array.isArray(raw) ? raw : raw ? [raw] : []).map((tag) => tag.toUpperCase());
-  const roll = params.format === "ql" || params.format === "pt" ? ROLLS[params.format] : null;
+  const format = params.format ?? (await cookies()).get(LABEL_FORMAT_COOKIE)?.value;
+  const rollKey = format === "ql" || format === "pt" ? format : null;
+  const roll = rollKey && ROLLS[rollKey];
 
   const assets = await prisma.asset.findMany({ where: { tag: { in: tags } }, orderBy: { tag: "asc" } });
   const labels = await Promise.all(assets.map(async (a) => ({ ...a, qr: await assetQrSvg(a.tag) })));
 
-  const href = (format?: string) => {
+  const href = (format: string) => {
     const q = new URLSearchParams(tags.map((tag) => ["tag", tag]));
-    if (format) q.set("format", format);
+    q.set("format", format);
     return `/inventory/labels?${q}`;
   };
 
   return (
     <>
+      <LabelPrint format={rollKey ?? "a4"} print={params.print === "1" && labels.length > 0} />
       <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">
           {t(labels.length === 1 ? "{n} label" : "{n} labels", { n: labels.length })}
         </h1>
         <div className="flex gap-2">
-          <Link href={href()} className={roll ? "btn" : "btn btn-primary"}>
+          <Link href={href("a4")} className={roll ? "btn" : "btn btn-primary"}>
             {t("A4 sheet")}
           </Link>
           {Object.entries(ROLLS).map(([format, r]) => (

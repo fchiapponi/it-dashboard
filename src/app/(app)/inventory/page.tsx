@@ -274,6 +274,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
                         </th>
                         {sortHeader("tag", t("Tag"))}
                         {columns.map((c) => (c in ASSET_SORTS ? sortHeader(c, columnLabel(c, locale)) : <th key={c}>{columnLabel(c, locale)}</th>))}
+                        <th className="w-8" />
                       </tr>
                     </thead>
                     <tbody>
@@ -294,6 +295,16 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
                                 {cell(a, c, extra, columns, locale)}
                               </td>
                             ))}
+                            <td>
+                              <Link
+                                href={`/inventory/labels?tag=${encodeURIComponent(a.tag)}&print=1`}
+                                className="text-dim hover:text-fg"
+                                title={t("Print label")}
+                                aria-label={t("Print label")}
+                              >
+                                <Printer className="size-4" />
+                              </Link>
+                            </td>
                           </tr>
                         );
                       })}

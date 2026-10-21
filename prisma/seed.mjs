@@ -62,6 +62,8 @@ const LOCATIONS = [
   "Balmelli",
   "Sahnek",
   "Art Center",
+  "Hadsall",
+  "Science",
 ];
 
 for (const { categories, ...dept } of DEPARTMENTS) {
