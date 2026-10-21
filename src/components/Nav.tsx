@@ -21,78 +21,79 @@ const ICONS = {
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; badge?: number };
 
-export function Nav({
-  items,
-  user,
-  signOut,
-  autoHide,
-}: {
-  items: NavItem[];
-  user: { name: string; email: string };
-  signOut?: () => Promise<void>;
-  // Off-screen until the mouse reaches the left edge (the monitor's TV view).
-  autoHide?: boolean;
-}) {
+// Text that only shows while the collapsed desktop sidebar is open on hover.
+const REVEAL = "whitespace-nowrap transition-opacity md:opacity-0 md:group-hover:opacity-100";
+
+// On desktop the sidebar is a rail of icons; hovering it widens it over the
+// page to show the labels. On phones it stays a bar across the top.
+export function Nav({ items, user, signOut }: { items: NavItem[]; user: { name: string; email: string }; signOut?: () => Promise<void> }) {
   const pathname = usePathname();
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
-  const aside = (
-    <aside
-      className={cn(
-        "no-print border-line bg-panel",
-        autoHide
-          ? "absolute inset-y-0 left-0 flex w-60 -translate-x-full flex-col border-r shadow-2xl transition-transform duration-200 group-hover:translate-x-0"
-          : "border-b md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col md:border-r md:border-b-0",
-      )}
-    >
-      <div className="relative flex items-center justify-center px-4 py-3 md:py-5">
-        <Link href="/" className="flex items-center">
-          <Image src="/tasis-crest.png" alt="TASIS One" width={235} height={175} priority className="h-12 w-auto md:h-16" />
-        </Link>
-        {signOut && (
-          <form action={signOut} className="absolute right-4 md:hidden">
-            <button className="btn px-2" title="Sign out">
-              <LogOut className="size-4" />
-            </button>
-          </form>
-        )}
-      </div>
-      <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-1 md:flex-col md:overflow-visible md:pb-0">
-        {items.map((item) => {
-          const Icon = ICONS[item.icon];
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm",
-                isActive(item.href) ? "bg-panel-muted font-medium text-fg" : "text-dim hover:bg-panel-muted hover:text-fg",
-              )}
-            >
-              <Icon className="size-4" />
-              {item.label}
-              {!!item.badge && (
-                <span className="ml-auto rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-fg">{item.badge}</span>
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-      <div className="hidden border-t border-line p-3 md:block">
-        <div className="truncate px-1 text-sm font-medium">{user.name}</div>
-        <div className="truncate px-1 text-xs text-dim">{user.email}</div>
-        {signOut && (
-          <form action={signOut} className="mt-2">
-            <button className="btn w-full justify-start border-0 px-1 text-dim">
-              <LogOut className="size-4" /> Sign out
-            </button>
-          </form>
-        )}
-      </div>
-    </aside>
+  return (
+    // Holds the rail's width in the page flow; the sidebar itself is fixed so it
+    // can widen over the content.
+    <div className="no-print md:w-16 md:shrink-0">
+      <aside className="group border-b border-line bg-panel md:fixed md:inset-y-0 md:left-0 md:z-50 md:flex md:w-16 md:flex-col md:overflow-hidden md:border-r md:border-b-0 md:transition-[width,box-shadow] md:duration-200 md:hover:w-60 md:hover:shadow-2xl">
+        <div className="relative flex items-center justify-center px-4 py-3 md:px-2 md:py-5">
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/tasis-crest.png"
+              alt="TASIS One"
+              width={235}
+              height={175}
+              priority
+              className="h-12 w-auto md:h-8 md:transition-[height] md:group-hover:h-16"
+            />
+          </Link>
+          {signOut && (
+            <form action={signOut} className="absolute right-4 md:hidden">
+              <button className="btn px-2" title="Sign out">
+                <LogOut className="size-4" />
+              </button>
+            </form>
+          )}
+        </div>
+        <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-1 md:flex-col md:overflow-visible md:pb-0">
+          {items.map((item) => {
+            const Icon = ICONS[item.icon];
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={item.label}
+                className={cn(
+                  "relative flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm",
+                  isActive(item.href) ? "bg-panel-muted font-medium text-fg" : "text-dim hover:bg-panel-muted hover:text-fg",
+                )}
+              >
+                <Icon className="size-4 shrink-0" />
+                <span className={REVEAL}>{item.label}</span>
+                {!!item.badge && (
+                  <>
+                    <span className={cn("ml-auto rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-fg", REVEAL)}>
+                      {item.badge}
+                    </span>
+                    {/* A dot on the icon stands in for the count while the rail is collapsed. */}
+                    <span className="absolute top-1.5 left-6 hidden size-2 rounded-full bg-accent md:block md:group-hover:hidden" />
+                  </>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="hidden border-t border-line p-3 md:block">
+          <div className={cn("truncate px-1 text-sm font-medium", REVEAL)}>{user.name}</div>
+          <div className={cn("truncate px-1 text-xs text-dim", REVEAL)}>{user.email}</div>
+          {signOut && (
+            <form action={signOut} className="mt-2">
+              <button className="btn w-full justify-start border-0 px-2 text-dim" title="Sign out">
+                <LogOut className="size-4 shrink-0" /> <span className={REVEAL}>Sign out</span>
+              </button>
+            </form>
+          )}
+        </div>
+      </aside>
+    </div>
   );
-
-  // A thin strip along the left edge catches the mouse; the sidebar stays open
-  // while the pointer is over it, since it is part of the same hover group.
-  return autoHide ? <div className="group fixed inset-y-0 left-0 z-50 w-2">{aside}</div> : aside;
 }

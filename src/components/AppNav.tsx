@@ -9,9 +9,8 @@ async function signOutAction() {
   redirect("/login");
 }
 
-// The app's sidebar, shared by the app layout and the monitor (where it hides
-// off-screen until the mouse reaches the left edge).
-export async function AppNav({ user, autoHide }: { user: CurrentUser; autoHide?: boolean }) {
+// The app's sidebar, shared by the app layout and the monitor.
+export async function AppNav({ user }: { user: CurrentUser }) {
   const myDeliveries = await prisma.delivery.count({ where: { recipientId: user.id, status: "received" } });
 
   const items: NavItem[] = [
@@ -32,7 +31,6 @@ export async function AppNav({ user, autoHide }: { user: CurrentUser; autoHide?:
       items={items}
       user={{ name: user.name, email: user.email }}
       signOut={signInRequired() ? signOutAction : undefined}
-      autoHide={autoHide}
     />
   );
 }
