@@ -152,7 +152,7 @@ export default async function TicketsPage({ searchParams }: PageProps<"/tickets"
       </div>
 
       {open ? (
-        <div data-wide className="grid gap-4 lg:grid-cols-[minmax(300px,400px)_1fr]">
+        <div className="grid gap-4 lg:grid-cols-[minmax(300px,400px)_1fr]">
           <Section className="hidden self-start lg:sticky lg:top-4 lg:block lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
             {tickets.length === 0 ? (
               <Empty>{t("No {dept} tickets here.", { dept: dept.name })}</Empty>

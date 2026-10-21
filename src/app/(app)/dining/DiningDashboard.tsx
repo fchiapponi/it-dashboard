@@ -374,7 +374,7 @@ export function DiningDashboard({ days: raw }: { days: DiningDay[] }) {
   const toggleHall = (id: HallId) => setHallIds((ids) => (ids.includes(id) ? (ids.length > 1 ? ids.filter((x) => x !== id) : ids) : [...ids, id]));
 
   return (
-    <div className="space-y-6" data-wide>
+    <div className="space-y-6">
       {/* Filters scope everything below them. */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
         <label className="flex items-center gap-2">

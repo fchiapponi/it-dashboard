@@ -119,7 +119,7 @@ export default async function LabelsPage({ searchParams }: PageProps<"/inventory
           </div>
         </>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 print:grid-cols-3 print:gap-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 print:grid-cols-3 print:gap-2">
           {labels.map((a) => (
             <div key={a.id} className="flex break-inside-avoid items-center gap-3 rounded-lg border border-zinc-300 bg-white p-3 text-black">
               <div className="w-20 shrink-0 [&_svg]:h-auto [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: a.qr }} />
