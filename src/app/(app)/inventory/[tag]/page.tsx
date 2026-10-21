@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Copy, Printer, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Copy, Printer, Trash2, TriangleAlert } from "lucide-react";
 import { Badge, DeptBadge, Empty, PageHeader, Section } from "@/components/ui";
 import { fieldLabelsFor, hasAssignedTo, parseExtra, parseReadings } from "@/lib/assets";
 import { isAgentOf, requireUser } from "@/lib/auth";
@@ -13,7 +13,8 @@ import { managedDepartments } from "@/lib/tickets";
 import { isMessage } from "@/i18n";
 import { activityText } from "@/i18n/activity";
 import { getI18n } from "@/i18n/server";
-import { addAssetNote, readPrinterDetails, updateAsset } from "../actions";
+import { ConfirmButton } from "../../boards/ConfirmButton";
+import { addAssetNote, deleteAsset, readPrinterDetails, updateAsset } from "../actions";
 import { AssetFields } from "../AssetFields";
 import { PrintLabelsButton } from "../labels/PrintLabelsButton";
 import { InkLevels } from "../InkLevels";
@@ -94,6 +95,15 @@ export default async function AssetPage({ params }: PageProps<"/inventory/[tag]"
               <Printer className="size-4" /> {t("Print label")}
             </PrintLabelsButton>
             {reportButton}
+            <form action={deleteAsset.bind(null, asset.id)}>
+              <ConfirmButton
+                message={t("Delete this item permanently, with its history? To keep the history, set its status to Retired instead.")}
+                className="btn btn-danger"
+                title={t("Delete")}
+              >
+                <Trash2 className="size-4" />
+              </ConfirmButton>
+            </form>
           </>
         }
       />

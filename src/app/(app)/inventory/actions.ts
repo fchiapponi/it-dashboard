@@ -111,6 +111,29 @@ export async function deleteAssets(form: FormData) {
   revalidatePath("/inventory");
 }
 
+/** Permanently removes one asset from its page, then shows its list. */
+export async function deleteAsset(assetId: string) {
+  const user = await requireUser();
+  const asset = await prisma.asset.findUniqueOrThrow({ where: { id: assetId }, include: { department: true } });
+  assert(isAgentOf(user, asset.departmentId));
+  await prisma.asset.delete({ where: { id: asset.id } });
+  revalidatePath("/inventory");
+  redirect(`/inventory?dept=${asset.department.slug}&type=${encodeURIComponent(asset.type)}`);
+}
+
+/** Removes a department's list once it has no items left. */
+export async function deleteList(form: FormData) {
+  const user = await requireUser();
+  const departmentId = req(form, "departmentId");
+  assert(isAgentOf(user, departmentId));
+  const type = req(form, "type");
+  assert(!(await prisma.asset.count({ where: { departmentId, type } })), "Delete or move the items of this list first.");
+  const dept = await prisma.department.findUniqueOrThrow({ where: { id: departmentId } });
+  await prisma.assetList.deleteMany({ where: { departmentId, type } });
+  revalidatePath("/inventory");
+  redirect(`/inventory?dept=${dept.slug}`);
+}
+
 // ------------------------------------------------------------ list columns
 
 /**

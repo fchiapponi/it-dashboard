@@ -26,7 +26,7 @@ import type { Locale } from "@/i18n";
 import { getI18n } from "@/i18n/server";
 import { lowStockCount, managedDepartments } from "@/lib/tickets";
 import { ConfirmButton } from "../boards/ConfirmButton";
-import { deleteAssets, refreshAllPrinters } from "./actions";
+import { deleteAssets, deleteList, refreshAllPrinters } from "./actions";
 import { InkLevels } from "./InkLevels";
 import { PrintLabelsButton } from "./labels/PrintLabelsButton";
 import { RenameListButton } from "./RenameListButton";
@@ -66,6 +66,8 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
   }));
   const type = lists.find((l) => l.type === filters.type)?.type ?? lists[0]?.type ?? "";
   const f = { ...filters, dept: dept.slug, type };
+  // A list with no items at all, not even retired ones, can be deleted.
+  const emptyList = !!type && !byType.some((g) => g.type === type);
 
   const [assets, locations, low, saved, byBuilding] = await Promise.all([
     type ? prisma.asset.findMany({ where: assetWhere(f), include: { location: true }, orderBy: ASSET_SORTS[f.sort], take: LIMIT }) : [],
@@ -141,7 +143,6 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
             <span className={cn("ml-1.5 text-xs", l.type === type ? "text-white/80" : "text-dim")}>{l.count}</span>
           </Link>
         ))}
-        {type && <RenameListButton departmentId={dept.id} type={type} />}
         <Link href={`/inventory/new?dept=${dept.slug}&newList=1`} className="rounded-lg px-3 py-1.5 text-sm text-dim hover:text-fg">
           <Plus className="inline size-3.5" /> {t("New list")}
         </Link>
@@ -189,18 +190,25 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
             )}
           </div>
 
-          {/* Tick rows, then print their QR labels or delete them. */}
-          <form action="/inventory/labels">
+          {/* Tick rows to delete them; an empty list can be deleted itself. */}
+          <form>
             <Section
               title={t(assets.length === 1 ? "{n} item" : "{n} items", { n: `${assets.length}${assets.length === LIMIT ? "+" : ""}` })}
               actions={
                 <div className="flex gap-2">
+                  <RenameListButton departmentId={dept.id} type={type} />
                   <Link href={columnsHref} className="btn">
                     <Columns3 className="size-4" /> {t("Columns")}
                   </Link>
-                  <PrintLabelsButton className="btn">
-                    <Printer className="size-4" /> {t("Print labels")}
-                  </PrintLabelsButton>
+                  {emptyList && (
+                    <>
+                      <input type="hidden" name="departmentId" value={dept.id} />
+                      <input type="hidden" name="type" value={type} />
+                      <ConfirmButton formAction={deleteList} message={t("Delete the list {type}?", { type })} className="btn btn-danger">
+                        <Trash2 className="size-4" /> {t("Delete list")}
+                      </ConfirmButton>
+                    </>
+                  )}
                   <ConfirmButton
                     formAction={deleteAssets}
                     message={t("Delete the selected items permanently, with their history? To keep the history, set their status to Retired instead.")}
