@@ -47,16 +47,20 @@ const DEPARTMENTS = [
 ];
 
 const LOCATIONS = [
-  "Palazzo Main",
-  "Lodge",
+  "Censi",
   "Belvedere",
-  "Hadsall House",
-  "Science Center",
+  "De Nobili",
+  "Fiammetta",
+  "Lanterna",
+  "Palmer",
+  "Palestra",
+  "Palestrina",
+  "Casa Fleming",
+  "Reception",
+  "Monticello",
   "Library",
-  "Gymnasium",
-  "Theater",
-  "Dining Hall",
-  "Art Center",
+  "Balmelli",
+  "Sahnek",
 ];
 
 for (const { categories, ...dept } of DEPARTMENTS) {
@@ -128,7 +132,10 @@ const PRINTERS = [
 
 const it = await prisma.department.findUnique({ where: { slug: "it" } });
 if (it && !(await prisma.asset.count({ where: { type: "Printer" } }))) {
-  const locations = new Map((await prisma.location.findMany()).map((l) => [l.name.toLowerCase(), l.id]));
+  // A printer belongs to the building its name starts with ("De Nobili Dorm" → De Nobili).
+  const locations = await prisma.location.findMany();
+  const locationOf = (name) =>
+    locations.find((l) => name.toLowerCase() === l.name.toLowerCase() || name.toLowerCase().startsWith(`${l.name.toLowerCase()} `))?.id ?? null;
   const last = await prisma.asset.findFirst({ where: { tag: { startsWith: "TAS-" } }, orderBy: { tag: "desc" } });
   let n = last ? Number.parseInt(last.tag.slice(4), 10) + 1 : 1;
   for (const [name, ip] of PRINTERS) {
@@ -138,7 +145,7 @@ if (it && !(await prisma.asset.count({ where: { type: "Printer" } }))) {
         name: name ? `${name} printer` : `Printer ${ip}`,
         type: "Printer",
         departmentId: it.id,
-        locationId: (name && locations.get(name.toLowerCase())) || null,
+        locationId: name ? locationOf(name) : null,
         extra: JSON.stringify({ "IP address": ip }),
         activity: { create: { body: "added from the network printer list" } },
       },
