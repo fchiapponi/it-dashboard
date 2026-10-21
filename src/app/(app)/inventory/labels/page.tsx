@@ -7,7 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { assetQrSvg } from "@/lib/qr";
 import { cn } from "@/lib/utils";
 import { getI18n } from "@/i18n/server";
-import { LABEL_FORMAT_COOKIE, LabelPrint } from "./LabelPrint";
+import { LABEL_FORMAT_COOKIE } from "./format";
+import { LabelPrint } from "./LabelPrint";
 
 /** Page CSS for label printers: one label per page, landscape, no margins. */
 const rollPage = (size: string) => `
