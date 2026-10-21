@@ -36,7 +36,6 @@ const ROLLS = {
     caption: "text-[7pt]",
     tag: "text-[14pt]",
     title: "line-clamp-2 text-[8pt]",
-    footer: "mt-[1mm] text-[6.5pt]",
   },
   pt: {
     name: "P-touch 24 mm",
@@ -47,7 +46,6 @@ const ROLLS = {
     caption: "text-[5.5pt]",
     tag: "text-[11pt]",
     title: "truncate text-[6.5pt]",
-    footer: "text-[5pt]",
   },
 } as const;
 
@@ -133,7 +131,6 @@ export default async function LabelsPage({ searchParams }: PageProps<"/inventory
                   <div className={cn("font-semibold tracking-wider uppercase", roll.caption)}>{t("TASIS property")}</div>
                   <div className={cn("font-mono font-bold", roll.tag)}>{a.tag}</div>
                   <div className={roll.title}>{a.name}</div>
-                  <div className={roll.footer}>{t("Problem? Scan to report")}</div>
                 </div>
               </div>
             ))}
@@ -148,7 +145,6 @@ export default async function LabelsPage({ searchParams }: PageProps<"/inventory
                 <div className="text-[10px] font-semibold tracking-wider uppercase">{t("TASIS property")}</div>
                 <div className="font-mono text-sm font-bold">{a.tag}</div>
                 <div className="truncate text-xs">{a.name}</div>
-                <div className="mt-1 text-[10px] text-zinc-600">{t("Problem? Scan to report")}</div>
               </div>
             </div>
           ))}

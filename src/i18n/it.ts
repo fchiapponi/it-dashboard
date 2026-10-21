@@ -412,7 +412,6 @@ export const it = {
   "In the print dialog choose the Brother QL-820NWB, paper 29mm x 90mm (DK-11201), margins None, scale 100%.": "Nella finestra di stampa scegli la Brother QL-820NWB, carta 29mm x 90mm (DK-11201), margini Nessuno, scala 100%.",
   "In the print dialog choose the Brother PT-P750W, paper 24mm tape (TZe), margins None, scale 100%.": "Nella finestra di stampa scegli la Brother PT-P750W, carta nastro 24mm (TZe), margini Nessuno, scala 100%.",
   "TASIS property": "Proprietà TASIS",
-  "Problem? Scan to report": "Problemi? Scansiona per segnalare",
 
   // ------------------------------------------------------------ columns
   "read from the printer": "letta dalla stampante",
