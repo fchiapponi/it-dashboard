@@ -582,7 +582,6 @@ export const it = {
   Waste: "Scarto",
   Fuser: "Fusore",
   "Pages printed": "Pagine stampate",
-  "Control room": "Sala di controllo",
   "Open Trello cards": "Schede Trello aperte",
   "Printers online": "Stampanti online",
   "Printer alert": "Avvisi stampanti",

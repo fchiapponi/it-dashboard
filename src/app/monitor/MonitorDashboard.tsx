@@ -287,7 +287,6 @@ export default function TvDashboardPage() {
             <div className="text-sm font-bold tracking-[0.15em] text-[var(--accent)] glow-text">
               TASIS
             </div>
-            <div className="text-[0.5rem] tracking-[0.3em] text-[var(--text-faint)] uppercase">{t("Control room")}</div>
           </div>
         </div>
         <div className="flex items-center gap-4">
