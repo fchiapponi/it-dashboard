@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { assert } from "@/lib/auth";
+import { assert, isAgentOf } from "@/lib/auth";
 import { boardForAction, cardForAction, listForAction } from "@/lib/boardAccess";
 import { BOARD_COLORS, CARD_COLORS } from "@/lib/boards";
-import { fromLocalInput, oneOf, req, str } from "@/lib/format";
+import { fromLocalInput, int, oneOf, req, str } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { canViewTicket, isDoneStatus } from "@/lib/tickets";
 
 /** URL of a board: /boards for a personal board, /boards/<department slug> for a shared one. */
 async function boardPath(board: { departmentId: string | null }) {
@@ -94,7 +95,7 @@ export async function moveCard(cardId: string, listId: string, orderedIds: strin
 }
 
 export async function updateCard(cardId: string, form: FormData) {
-  const { card } = await cardForAction(cardId);
+  const { user, card } = await cardForAction(cardId);
   const board = card.list.board;
 
   // Moving through the dialog's list picker drops the card at the bottom of the new list.
@@ -121,6 +122,27 @@ export async function updateCard(cardId: string, form: FormData) {
     assigneeId = picked.id;
   }
 
+  // Linking by ticket number: only to a ticket this user can see.
+  const ticketNumber = int(form, "ticketNumber");
+  const ticket = ticketNumber ? await prisma.ticket.findUnique({ where: { number: ticketNumber } }) : null;
+  if (ticketNumber) assert(ticket && canViewTicket(user, ticket), `No ticket #${ticketNumber} you can see.`);
+  const linked = ticket && ticket.id !== card.ticketId;
+  // A newly linked card takes the ticket's state; otherwise ticking the card can resolve or reopen the ticket.
+  let done = form.get("done") === "on";
+  if (linked) done = isDoneStatus(ticket.status);
+  else if (ticket && done !== isDoneStatus(ticket.status) && isAgentOf(user, ticket.departmentId)) {
+    await prisma.ticket.update({
+      where: { id: ticket.id },
+      data: { status: done ? "resolved" : "open", resolvedAt: done ? new Date() : null },
+    });
+    await prisma.ticketActivity.create({
+      data: { ticketId: ticket.id, authorId: user.id, kind: "event", body: done ? "resolved from the board" : "reopened from the board" },
+    });
+    await prisma.card.updateMany({ where: { ticketId: ticket.id, id: { not: card.id } }, data: { done } });
+    revalidatePath(`/tickets/${ticket.number}`);
+    revalidatePath("/tickets");
+  }
+
   const color = str(form, "color");
   await prisma.card.update({
     where: { id: cardId },
@@ -130,7 +152,8 @@ export async function updateCard(cardId: string, form: FormData) {
       color: color && CARD_COLORS.includes(color) ? color : null,
       assigneeId,
       dueAt: fromLocalInput(str(form, "dueAt")),
-      done: form.get("done") === "on",
+      done,
+      ticketId: ticket?.id ?? null,
       listId,
       position,
     },

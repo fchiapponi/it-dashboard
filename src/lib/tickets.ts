@@ -12,6 +12,14 @@ export function visibleTickets(user: CurrentUser): Prisma.TicketWhereInput {
   return { OR: [{ requesterId: user.id }, { departmentId: { in: user.departmentIds } }] };
 }
 
+export const isDoneStatus = (status: string) => status === "resolved" || status === "closed";
+
+/** Ticks the board cards linked to a ticket when it's resolved or closed, and unticks them when it reopens. */
+export function syncTicketCards(ticketId: string, status: string) {
+  const done = isDoneStatus(status);
+  return prisma.card.updateMany({ where: { ticketId, done: !done }, data: { done } });
+}
+
 export function canViewTicket(user: CurrentUser, t: { requesterId: string; departmentId: string }) {
   return t.requesterId === user.id || isAgentOf(user, t.departmentId);
 }

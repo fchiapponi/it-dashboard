@@ -1,11 +1,14 @@
 import Link from "next/link";
-import { Settings, Trash2, User, Users } from "lucide-react";
+import { Settings, Ticket, Trash2, User, Users } from "lucide-react";
 import type { Board } from "@/generated/prisma";
+import { Badge } from "@/components/Badge";
 import { Field, PageHeader } from "@/components/ui";
+import { requireUser } from "@/lib/auth";
 import { boardDepartments } from "@/lib/boardAccess";
 import { BOARD_COLORS, CARD_COLORS, initials } from "@/lib/boards";
 import { fmtDate, fmtDateTime, fmtRelative, startOfToday, toLocalInput } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { canViewTicket } from "@/lib/tickets";
 import { cn } from "@/lib/utils";
 import { getI18n } from "@/i18n/server";
 import { BoardView, type ListItem } from "./BoardView";
@@ -25,6 +28,7 @@ export async function BoardScreen({
   cardId: string | null;
 }) {
   const { t, locale } = await getI18n();
+  const user = await requireUser();
   const basePath = department ? `/boards/${department.slug}` : "/boards";
 
   const [full, departments] = await Promise.all([
@@ -36,7 +40,7 @@ export async function BoardScreen({
           include: {
             cards: {
               orderBy: { position: "asc" },
-              include: { assignee: true, _count: { select: { comments: true } } },
+              include: { assignee: true, ticket: true, _count: { select: { comments: true } } },
             },
           },
         },
@@ -61,6 +65,8 @@ export async function BoardScreen({
       assignee: department && c.assignee ? { name: c.assignee.name, initials: initials(c.assignee.name) } : null,
       comments: c._count.comments,
       hasDescription: !!c.description,
+      // Shared boards are open to everyone, so the ticket's status only shows to people who can see the ticket.
+      ticket: c.ticket ? { number: c.ticket.number, status: canViewTicket(user, c.ticket) ? c.ticket.status : null } : null,
     })),
   }));
 
@@ -147,10 +153,16 @@ async function CardDialog({
   department?: { id: string };
 }) {
   const { t, locale } = await getI18n();
+  const user = await requireUser();
   const [card, members] = await Promise.all([
     prisma.card.findUnique({
       where: { id: cardId },
-      include: { list: true, createdBy: true, comments: { include: { author: true }, orderBy: { createdAt: "asc" } } },
+      include: {
+        list: true,
+        createdBy: true,
+        ticket: true,
+        comments: { include: { author: true }, orderBy: { createdAt: "asc" } },
+      },
     }),
     department
       ? prisma.user.findMany({
@@ -161,6 +173,7 @@ async function CardDialog({
       : [],
   ]);
   if (!card || card.list.boardId !== boardId) return null;
+  const ticket = card.ticket && canViewTicket(user, card.ticket) ? card.ticket : null;
 
   return (
     <DialogShell closeHref={basePath}>
@@ -175,6 +188,18 @@ async function CardDialog({
           <Field label={t("Title")}>
             <input name="title" required defaultValue={card.title} className="input text-base font-medium" />
           </Field>
+
+          {ticket && (
+            <Link
+              href={`/tickets/${ticket.number}`}
+              className="flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm hover:border-accent/40"
+            >
+              <Ticket className="size-4 shrink-0 text-dim" />
+              <span className="text-dim">#{ticket.number}</span>
+              <span className="min-w-0 flex-1 truncate font-medium">{ticket.title}</span>
+              <Badge value={ticket.status} />
+            </Link>
+          )}
 
           <div className={cn("grid gap-4", department ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
             <Field label={t("List")}>
@@ -202,6 +227,17 @@ async function CardDialog({
               <input name="dueAt" type="date" defaultValue={toLocalInput(card.dueAt).slice(0, 10)} className="input" />
             </Field>
           </div>
+
+          <Field label={t("Linked ticket")}>
+            <input
+              name="ticketNumber"
+              type="number"
+              min={1}
+              defaultValue={card.ticket?.number ?? ""}
+              placeholder={t("Ticket number, e.g. 1042")}
+              className="input"
+            />
+          </Field>
 
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>

@@ -170,6 +170,10 @@ export const it = {
   "Write a comment…": "Scrivi un commento…",
   "Delete the card \"{title}\"?": "Eliminare la scheda \"{title}\"?",
   "Delete card": "Elimina scheda",
+  "Linked ticket": "Ticket collegato",
+  "Ticket number, e.g. 1042": "Numero del ticket, es. 1042",
+  "Add to board": "Aggiungi alla bacheca",
+  "Not on any board yet": "Non è ancora su nessuna bacheca",
 
   // ------------------------------------------------------------ board view
   "Has a description": "Ha una descrizione",

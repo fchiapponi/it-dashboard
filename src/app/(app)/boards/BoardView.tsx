@@ -2,7 +2,8 @@
 
 import { startTransition, useOptimistic, useRef, useState, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
-import { AlignLeft, CalendarDays, Check, MessageSquare, Plus, Trash2, X } from "lucide-react";
+import { AlignLeft, CalendarDays, Check, MessageSquare, Plus, Ticket, Trash2, X } from "lucide-react";
+import { Badge } from "@/components/Badge";
 import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 import { createCard, createList, deleteList, moveCard, renameList, reorderLists } from "./actions";
@@ -16,6 +17,8 @@ export type CardItem = {
   assignee: { name: string; initials: string } | null;
   comments: number;
   hasDescription: boolean;
+  /** `status` is null for people who can't see the ticket. */
+  ticket: { number: number; status: string | null } | null;
 };
 export type ListItem = { id: string; title: string; cards: CardItem[] };
 
@@ -201,7 +204,7 @@ function CardFace({
       {card.color && <div className="h-1.5" style={{ background: card.color }} />}
       <div className="px-3 py-2">
         <div className={cn("break-words", card.done && "text-dim line-through")}>{card.title}</div>
-        {(card.due || card.assignee || card.comments > 0 || card.hasDescription || card.done) && (
+        {(card.due || card.assignee || card.comments > 0 || card.hasDescription || card.done || card.ticket) && (
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-dim">
             {card.due && (
               <span
@@ -216,6 +219,12 @@ function CardFace({
               >
                 <CalendarDays className="size-3" />
                 {card.due.label}
+              </span>
+            )}
+            {card.ticket && (
+              <span className="inline-flex items-center gap-1">
+                <Ticket className="size-3.5" />#{card.ticket.number}
+                {card.ticket.status && <Badge value={card.ticket.status} />}
               </span>
             )}
             {card.done && !card.due && (

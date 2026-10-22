@@ -2,7 +2,7 @@ import { label } from "@/lib/format";
 import { addLabel, getMessage, gmailConfigured, labelId, listPending, mailbox, reply, type InboundEmail } from "@/lib/gmail";
 import { prisma } from "@/lib/prisma";
 import { triageEmail } from "@/lib/ticketTriage";
-import { createTicketRecord } from "@/lib/tickets";
+import { createTicketRecord, syncTicketCards } from "@/lib/tickets";
 
 // Turns emails sent to ticket@ into tickets. Every email the poller has dealt
 // with gets the PROCESSED label in Gmail, so it is never handled twice and
@@ -167,6 +167,7 @@ async function addReply(ticket: { id: string; requesterId: string; departmentId:
     await prisma.ticketActivity.create({
       data: { ticketId: ticket.id, authorId: author.id, kind: "event", body: "reopened by email reply" },
     });
+    await syncTicketCards(ticket.id, "open");
   }
 }
 

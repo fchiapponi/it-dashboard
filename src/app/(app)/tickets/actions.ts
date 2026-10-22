@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 import { assert, isAgentOf, requireUser } from "@/lib/auth";
 import { fmtDate, fromLocalInput, int, label, oneOf, req, str, TICKET_PRIORITIES, TICKET_STATUSES } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { canViewTicket, createTicketRecord } from "@/lib/tickets";
+import { openDepartmentBoard, openMyBoard } from "@/lib/boardAccess";
+import { DEFAULT_LISTS } from "@/lib/boards";
+import { canViewTicket, createTicketRecord, isDoneStatus, syncTicketCards } from "@/lib/tickets";
 
 export async function createTicket(form: FormData) {
   const user = await requireUser();
@@ -40,10 +42,11 @@ export async function createTicket(form: FormData) {
   redirect(`/tickets/${ticket.number}`);
 }
 
-/** The ticket's own page and the list, which shows it in the reading pane. */
+/** The ticket's own page, the list, which shows it in the reading pane, and the boards its cards are on. */
 function revalidateTicket(number: number) {
   revalidatePath(`/tickets/${number}`);
   revalidatePath("/tickets");
+  revalidatePath("/boards", "layout");
 }
 
 async function loadForAgent(ticketId: string) {
@@ -86,7 +89,7 @@ export async function updateTicket(ticketId: string, form: FormData) {
   }
   if (!events.length && categoryId === ticket.categoryId) return;
 
-  const done = status === "resolved" || status === "closed";
+  const done = isDoneStatus(status);
   await prisma.ticket.update({
     where: { id: ticket.id },
     data: {
@@ -107,6 +110,7 @@ export async function updateTicket(ticketId: string, form: FormData) {
       data: events.map((body) => ({ ticketId: ticket.id, authorId: user.id, kind: "event", body })),
     });
   }
+  if (status !== ticket.status) await syncTicketCards(ticket.id, status);
   revalidateTicket(ticket.number);
 }
 
@@ -145,6 +149,7 @@ export async function addComment(ticketId: string, form: FormData) {
     await prisma.ticketActivity.create({
       data: { ticketId, authorId: user.id, kind: "event", body: "reopened by reply" },
     });
+    await syncTicketCards(ticketId, "open");
   }
   revalidateTicket(ticket.number);
 }
@@ -156,6 +161,51 @@ export async function closeOwnTicket(ticketId: string) {
   assert(ticket.requesterId === user.id);
   await prisma.ticket.update({ where: { id: ticketId }, data: { status: "closed", resolvedAt: ticket.resolvedAt ?? new Date() } });
   await prisma.ticketActivity.create({ data: { ticketId, authorId: user.id, kind: "event", body: "closed this ticket" } });
+  await syncTicketCards(ticketId, "closed");
+  revalidateTicket(ticket.number);
+}
+
+/**
+ * Puts a card for the ticket on a board: the department's shared board (agents only) or the
+ * user's personal one. It lands at the bottom of the board's first list, once per board.
+ */
+export async function addTicketToBoard(ticketId: string, form: FormData) {
+  const user = await requireUser();
+  const ticket = await prisma.ticket.findUniqueOrThrow({
+    where: { id: ticketId },
+    include: { department: true, assignees: { orderBy: { createdAt: "asc" } } },
+  });
+  assert(canViewTicket(user, ticket));
+  const shared = form.get("board") === "department";
+  assert(!shared || isAgentOf(user, ticket.departmentId));
+  const { board } = shared ? await openDepartmentBoard(ticket.department.slug) : await openMyBoard();
+
+  const existing = await prisma.card.findFirst({ where: { ticketId, list: { boardId: board.id } } });
+  if (!existing) {
+    const list =
+      (await prisma.boardList.findFirst({ where: { boardId: board.id }, orderBy: { position: "asc" } })) ??
+      (await prisma.boardList.create({ data: { boardId: board.id, title: DEFAULT_LISTS[0]!, position: 0 } }));
+    const last = await prisma.card.findFirst({ where: { listId: list.id }, orderBy: { position: "desc" } });
+    // On the shared board the card goes to whoever has the ticket, if they're in the department.
+    const firstAssignee = shared ? ticket.assignees[0]?.userId : undefined;
+    const assignee = firstAssignee
+      ? await prisma.user.findFirst({
+          where: { id: firstAssignee, OR: [{ role: "admin" }, { memberships: { some: { departmentId: ticket.departmentId } } }] },
+        })
+      : null;
+    await prisma.card.create({
+      data: {
+        listId: list.id,
+        title: ticket.title,
+        position: (last?.position ?? -1) + 1,
+        dueAt: ticket.dueAt,
+        done: isDoneStatus(ticket.status),
+        assigneeId: assignee?.id ?? null,
+        ticketId,
+        createdById: user.id,
+      },
+    });
+  }
   revalidateTicket(ticket.number);
 }
 

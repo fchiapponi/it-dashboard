@@ -14,6 +14,8 @@ const PHRASES: [RegExp, string | ((...m: string[]) => string)][] = [
   [/created this ticket/g, "ha creato questo ticket"],
   [/took this ticket/g, "ha preso in carico questo ticket"],
   [/closed this ticket/g, "ha chiuso questo ticket"],
+  [/resolved from the board/g, "ha risolto il ticket dalla bacheca"],
+  [/reopened from the board/g, "ha riaperto il ticket dalla bacheca"],
   [/reopened by email reply/g, "ha riaperto il ticket rispondendo via email"],
   [/reopened by reply/g, "ha riaperto il ticket rispondendo"],
   [/removed the due date/g, "ha rimosso la scadenza"],

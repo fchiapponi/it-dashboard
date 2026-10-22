@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Maximize2, X } from "lucide-react";
+import { Check, SquareKanban, Maximize2, Plus, X } from "lucide-react";
 import { Badge, DeptBadge, Empty, Field, PageHeader, Section, toneClasses } from "@/components/ui";
 import { isAgentOf, requireUser } from "@/lib/auth";
+import { canUseBoard } from "@/lib/boardAccess";
 import { fmtDate, fmtDateTime, fmtRelative, label, startOfToday, TICKET_PRIORITIES, TICKET_STATUSES, toLocalInput } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { canViewTicket } from "@/lib/tickets";
 import { cn } from "@/lib/utils";
 import { activityText } from "@/i18n/activity";
 import { getI18n } from "@/i18n/server";
-import { addComment, closeOwnTicket, takeTicket, updateTicket, consumeSupply } from "../actions";
+import { addComment, addTicketToBoard, closeOwnTicket, takeTicket, updateTicket, consumeSupply } from "../actions";
 import { StatusPills } from "./StatusPills";
 
 /**
@@ -34,6 +35,7 @@ export async function TicketDetail({ number, pane }: { number: number; pane?: { 
       asset: true,
       event: true,
       activity: { include: { author: true }, orderBy: { createdAt: "asc" } },
+      cards: { include: { list: { include: { board: { include: { department: true } } } } }, orderBy: { createdAt: "asc" } },
     },
   });
   if (!ticket || !canViewTicket(user, ticket)) return missing();
@@ -52,6 +54,10 @@ export async function TicketDetail({ number, pane }: { number: number; pane?: { 
     : [[], [], []];
 
   const activity = ticket.activity.filter((a) => agent || a.kind !== "note");
+  // Cards on boards this user can open: their own board and the shared ones.
+  const cards = ticket.cards.filter((c) => canUseBoard(user, c.list.board));
+  const onMyBoard = cards.some((c) => c.list.board.ownerId === user.id);
+  const onDeptBoard = cards.some((c) => c.list.board.departmentId === ticket.departmentId);
   const open = !["resolved", "closed"].includes(ticket.status);
 
   return (
@@ -248,6 +254,41 @@ export async function TicketDetail({ number, pane }: { number: number; pane?: { 
               <Detail term={t("Opened")}>{fmtDateTime(ticket.createdAt, locale)}</Detail>
               {ticket.resolvedAt && <Detail term={t("Resolved")}>{fmtDateTime(ticket.resolvedAt, locale)}</Detail>}
             </dl>
+          </Section>
+
+          <Section title={t("Boards")}>
+            <div className="space-y-2 p-4 text-sm">
+              {cards.map((c) => {
+                const board = c.list.board;
+                const href = `${board.department ? `/boards/${board.department.slug}` : "/boards"}?card=${c.id}`;
+                return (
+                  <Link key={c.id} href={href} className="flex items-center gap-2 rounded-lg border border-line px-3 py-2 hover:border-accent/40">
+                    <span className="size-2.5 shrink-0 rounded-sm" style={{ background: board.color }} />
+                    <span className="min-w-0 flex-1 truncate">
+                      {board.ownerId ? t("My board") : board.title}
+                      <span className="text-dim"> · {c.list.title}</span>
+                    </span>
+                    {c.done && <Check className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />}
+                  </Link>
+                );
+              })}
+              {(!onMyBoard || (agent && !onDeptBoard)) && (
+                <form action={addTicketToBoard.bind(null, ticket.id)} className="flex gap-2">
+                  <select name="board" className="input min-w-0" defaultValue={agent && !onDeptBoard ? "department" : "mine"}>
+                    {agent && !onDeptBoard && <option value="department">{ticket.department.name}</option>}
+                    {!onMyBoard && <option value="mine">{t("My board")}</option>}
+                  </select>
+                  <button className="btn shrink-0">
+                    <Plus className="size-4" /> {t("Add to board")}
+                  </button>
+                </form>
+              )}
+              {!cards.length && (
+                <p className="flex items-center gap-1.5 text-xs text-dim">
+                  <SquareKanban className="size-3.5" /> {t("Not on any board yet")}
+                </p>
+              )}
+            </div>
           </Section>
 
           {agent && supplies.length > 0 && (
