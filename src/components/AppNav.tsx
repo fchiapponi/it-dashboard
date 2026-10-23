@@ -29,7 +29,7 @@ export async function AppNav({ user }: { user: CurrentUser }) {
     ...(agent ? [{ href: "/inventory", label: t("Inventory"), icon: "inventory" } as NavItem] : []),
     { href: "/visitors", label: t("Visitors"), icon: "visitors" },
     { href: "/deliveries", label: t("Deliveries"), icon: "deliveries", badge: isReception(user) ? undefined : myDeliveries },
-    { href: "/dining", label: t("Dining"), icon: "dining" },
+    ...(department?.slug === "kitchen" ? [{ href: "/dining", label: t("Dining"), icon: "dining" } as NavItem] : []),
     { href: "/hours", label: t("Hours"), icon: "hours" },
     // The full-screen control-room view for the TV (printers, Wi-Fi, IT Trello board), for IT only
     ...(agent && department?.slug === "it" ? [{ href: "/monitor", label: t("Monitor"), icon: "monitor" } as NavItem] : []),

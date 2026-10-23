@@ -1,6 +1,8 @@
 import { Empty, PageHeader, Section } from "@/components/ui";
 import { PrinterButton } from "../inventory/PrinterButton";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { getDepartment } from "@/lib/department";
 import { getDiningData } from "@/lib/dining";
 import { fmtDateTime } from "@/lib/format";
 import { getI18n } from "@/i18n/server";
@@ -9,6 +11,8 @@ import { DiningDashboard } from "./DiningDashboard";
 
 export default async function DiningPage() {
   await requireUser();
+  // The kitchen's page: only with Kitchen & Dining picked on the home page.
+  if ((await getDepartment())?.slug !== "kitchen") redirect("/");
   const data = await getDiningData();
   const { t, locale } = await getI18n();
 
