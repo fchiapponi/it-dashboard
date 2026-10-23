@@ -23,6 +23,7 @@ export async function AppNav({ user }: { user: CurrentUser }) {
     { href: "/visitors", label: t("Visitors"), icon: "visitors" },
     { href: "/deliveries", label: t("Deliveries"), icon: "deliveries", badge: isReception(user) ? undefined : myDeliveries },
     { href: "/dining", label: t("Dining"), icon: "dining" },
+    { href: "/hours", label: t("Hours"), icon: "hours" },
     // The full-screen control-room view for the TV (printers, Wi-Fi, IT Trello board)
     ...(isAgent(user) ? [{ href: "/monitor", label: t("Monitor"), icon: "monitor" } as NavItem] : []),
   ];

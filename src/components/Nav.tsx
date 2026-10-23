@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Boxes, CalendarDays, LayoutDashboard, LogOut, MonitorDot, Package, Settings, SquareKanban, Ticket, UserCheck, UtensilsCrossed } from "lucide-react";
+import { Boxes, CalendarDays, Clock, LayoutDashboard, LogOut, MonitorDot, Package, Settings, SquareKanban, Ticket, UserCheck, UtensilsCrossed } from "lucide-react";
 import { useI18n } from "@/i18n/client";
 import { LanguageSwitch } from "@/i18n/LanguageSwitch";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ const ICONS = {
   deliveries: Package,
   inventory: Boxes,
   dining: UtensilsCrossed,
+  hours: Clock,
   monitor: MonitorDot,
   admin: Settings,
 };
