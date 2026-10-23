@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowDown, Columns3, Plus, Printer, Trash2 } from "lucide-react";
-import { Badge, Empty, FilterTabs, PageHeader, Section, TableWrap } from "@/components/ui";
+import { Badge, Empty, PageHeader, Section, TableWrap } from "@/components/ui";
 import type { Asset, Location } from "@/generated/prisma";
 import {
   ASSET_SORTS,
@@ -18,13 +18,14 @@ import {
   readingLabel,
   savedColumns,
 } from "@/lib/assets";
-import { isAgent, requireUser } from "@/lib/auth";
+import { isAgentOf, requireUser } from "@/lib/auth";
+import { requireDepartment } from "@/lib/department";
 import { ASSET_STATUSES, fmtDate, fmtDateTime, label } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 import type { Locale } from "@/i18n";
 import { getI18n } from "@/i18n/server";
-import { lowStockCount, managedDepartments } from "@/lib/tickets";
+import { lowStockCount } from "@/lib/tickets";
 import { ConfirmButton } from "../boards/ConfirmButton";
 import { deleteAssets, deleteList, refreshAllPrinters } from "./actions";
 import { InkLevels } from "./InkLevels";
@@ -38,22 +39,15 @@ const LIMIT = 2000;
 
 export default async function InventoryPage({ searchParams }: PageProps<"/inventory">) {
   const user = await requireUser();
-  if (!isAgent(user)) notFound();
+  // Only the department picked on the home page.
+  const dept = await requireDepartment();
+  if (!isAgentOf(user, dept.id)) notFound();
   const sp = await searchParams;
   const { t, locale } = await getI18n();
   const filters = readAssetFilters(sp);
 
   // Each department has its own inventory, and inside it one list per type
   // (Printers, iPads, …), each with its own columns.
-  const departments = await managedDepartments(user);
-  // Default: the user's own department, else the first one with any items.
-  const stocked = new Set((await prisma.asset.groupBy({ by: ["departmentId"] })).map((g) => g.departmentId));
-  const dept =
-    departments.find((d) => d.slug === filters.dept) ??
-    departments.find((d) => user.departmentIds.includes(d.id)) ??
-    departments.find((d) => stocked.has(d.id)) ??
-    departments[0];
-  if (!dept) notFound();
   const [byType, made] = await Promise.all([
     prisma.asset.groupBy({ by: ["type", "status"], where: { departmentId: dept.id }, _count: true, orderBy: { type: "asc" } }),
     // Lists added with "New list" show up before their first item.
@@ -72,7 +66,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
   const [assets, locations, low, saved, byBuilding] = await Promise.all([
     type ? prisma.asset.findMany({ where: assetWhere(f), include: { location: true }, orderBy: ASSET_SORTS[f.sort], take: LIMIT }) : [],
     prisma.location.findMany({ orderBy: { name: "asc" } }),
-    lowStockCount(user.isAdmin ? undefined : user.departmentIds),
+    lowStockCount([dept.id]),
     type ? savedColumns(dept.id, type) : null,
     // How many items of this list each building has, with the other filters applied.
     type ? prisma.asset.groupBy({ by: ["locationId"], where: assetWhere({ ...f, building: "" }), _count: true }) : [],
@@ -121,13 +115,6 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
         }
       />
       <InventoryTabs active="assets" lowStock={low} />
-
-      {departments.length > 1 && (
-        <FilterTabs
-          active={dept.slug}
-          items={departments.map((d) => ({ key: d.slug, label: d.name, href: `/inventory?dept=${d.slug}` }))}
-        />
-      )}
 
       <div className="mb-4 flex flex-wrap items-center gap-1 border-b border-line pb-3">
         {lists.map((l) => (

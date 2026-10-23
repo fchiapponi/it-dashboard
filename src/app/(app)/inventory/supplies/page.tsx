@@ -1,31 +1,32 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, DeptBadge, Empty, Field, PageHeader, Section, TableWrap } from "@/components/ui";
-import { isAgent, isAgentOf, requireUser } from "@/lib/auth";
+import { Badge, Empty, Field, PageHeader, Section, TableWrap } from "@/components/ui";
+import { isAgentOf, requireUser } from "@/lib/auth";
+import { requireDepartment } from "@/lib/department";
 import { fmtRelative } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { managedDepartments } from "@/lib/tickets";
 import { getI18n } from "@/i18n/server";
 import { adjustStock, createSupply, deleteSupply, updateSupply } from "../actions";
 import { InventoryTabs } from "../Tabs";
 
 export default async function SuppliesPage({ searchParams }: PageProps<"/inventory/supplies">) {
   const user = await requireUser();
-  if (!isAgent(user)) notFound();
+  // Only the department picked on the home page.
+  const dept = await requireDepartment();
+  if (!isAgentOf(user, dept.id)) notFound();
   const sp = await searchParams;
   const { t, locale } = await getI18n();
   const editId = typeof sp.edit === "string" ? sp.edit : null;
 
-  const [supplies, departments, locations, movements] = await Promise.all([
+  const [supplies, locations, movements] = await Promise.all([
     prisma.supply.findMany({
-      where: user.isAdmin ? {} : { departmentId: { in: user.departmentIds } },
-      include: { department: true, location: true },
-      orderBy: [{ department: { name: "asc" } }, { name: "asc" }],
+      where: { departmentId: dept.id },
+      include: { location: true },
+      orderBy: { name: "asc" },
     }),
-    managedDepartments(user),
     prisma.location.findMany({ orderBy: { name: "asc" } }),
     prisma.stockMovement.findMany({
-      where: user.isAdmin ? {} : { supply: { departmentId: { in: user.departmentIds } } },
+      where: { supply: { departmentId: dept.id } },
       include: { supply: true, actor: true, ticket: true },
       orderBy: { createdAt: "desc" },
       take: 15,
@@ -36,7 +37,7 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
 
   return (
     <>
-      <PageHeader title={t("Inventory")} subtitle={t("Consumables: toner, cables, spare parts, cleaning products…")} />
+      <PageHeader title={t("{dept} inventory", { dept: dept.name })} subtitle={t("Consumables: toner, cables, spare parts, cleaning products…")} />
       <InventoryTabs active="supplies" lowStock={low.length} />
 
       <Section title={t("Stock")} className="mb-6">
@@ -48,7 +49,6 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
               <thead>
                 <tr>
                   <th>{t("Item")}</th>
-                  <th>{t("Department")}</th>
                   <th>{t("Location")}</th>
                   <th className="text-right">{t("In stock")}</th>
                   <th className="text-right">{t("Min")}</th>
@@ -58,9 +58,9 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
               </thead>
               <tbody>
                 {sorted.map((s) =>
-                  editId === s.id && isAgentOf(user, s.departmentId) ? (
+                  editId === s.id ? (
                     <tr key={s.id}>
-                      <td colSpan={7}>
+                      <td colSpan={6}>
                         <form action={updateSupply.bind(null, s.id)} className="grid items-end gap-2 sm:grid-cols-6">
                           <Field label={t("Name")} className="sm:col-span-2">
                             <input name="name" required defaultValue={s.name} className="input" />
@@ -102,9 +102,6 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
                         <div className="font-medium">{s.name}</div>
                         {s.sku && <div className="text-xs text-dim">{s.sku}</div>}
                       </td>
-                      <td>
-                        <DeptBadge dept={s.department} />
-                      </td>
                       <td className="text-dim">{s.location?.name ?? "—"}</td>
                       <td className="text-right tabular-nums">
                         {s.quantity <= s.minQuantity ? <Badge tone="red">{s.quantity} {s.unit}</Badge> : `${s.quantity} ${s.unit}`}
@@ -137,15 +134,7 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
             <Field label={t("Name")} className="sm:col-span-2">
               <input name="name" required placeholder={t("e.g. HP 508A toner – black")} className="input" />
             </Field>
-            <Field label={t("Department")}>
-              <select name="departmentId" className="input">
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            <input type="hidden" name="departmentId" value={dept.id} />
             <Field label={t("Location")}>
               <select name="locationId" className="input">
                 <option value="">—</option>

@@ -45,6 +45,11 @@ export const it = {
 
   // ------------------------------------------------------------ dashboard
   "Hello, {name}": "Ciao, {name}",
+  "Choose your department": "Scegli il tuo reparto",
+  "You'll only see its tickets, inventory and board. You can change it any time.":
+    "Vedrai solo i suoi ticket, l'inventario e la bacheca. Puoi cambiarlo quando vuoi.",
+  "Change department": "Cambia reparto",
+  "No departments yet. Add one in Admin.": "Nessun reparto ancora. Aggiungine uno in Admin.",
   "What needs attention today": "Cosa richiede attenzione oggi",
   "New ticket": "Nuovo ticket",
   "Assigned to me": "Assegnati a me",
@@ -85,10 +90,9 @@ export const it = {
   "Sign in": "Accedi",
 
   // ------------------------------------------------------------ tickets
-  "No department takes tickets yet. Add one in Admin.": "Nessun reparto riceve ancora ticket. Aggiungine uno in Admin.",
+  "{dept} doesn't take tickets.": "{dept} non riceve ticket.",
   "Department queue": "Coda del reparto",
   "My requests": "Le mie richieste",
-  "Requests to IT, Facilities, Electrician and Kitchen & Dining": "Richieste a IT, Manutenzione, Elettricista e Cucina & Mensa",
   Active: "Attivi",
   All: "Tutti",
   "Search title or #number": "Cerca titolo o #numero",

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import type { Prisma } from "@/generated/prisma";
-import { Badge, Empty, FilterTabs, PageHeader, Section, TableWrap, toneClasses } from "@/components/ui";
+import { Badge, DeptBadge, Empty, FilterTabs, PageHeader, Section, TableWrap, toneClasses } from "@/components/ui";
 import { isAgentOf, requireUser } from "@/lib/auth";
+import { requireDepartment } from "@/lib/department";
 import { fmtDate, fmtDateTime, fmtRelative, label, startOfToday, TICKET_STATUSES } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { ACTIVE_STATUSES, visibleTickets } from "@/lib/tickets";
@@ -23,11 +24,9 @@ export default async function TicketsPage({ searchParams }: PageProps<"/tickets"
   // The ticket open in the reading pane next to the list, like a mail client.
   const open = typeof sp.t === "string" ? sp.t : null;
 
-  // Tickets are always shown one department at a time, never mixed.
-  const departments = await prisma.department.findMany({ where: { takesTickets: true }, orderBy: { name: "asc" } });
-  const dept =
-    departments.find((d) => d.slug === sp.dept) ?? departments.find((d) => user.departmentIds.includes(d.id)) ?? departments[0];
-  if (!dept) return <PageHeader title={t("Tickets")} subtitle={t("No department takes tickets yet. Add one in Admin.")} />;
+  // Only the department picked on the home page; tickets of different departments are never mixed.
+  const dept = await requireDepartment();
+  if (!dept.takesTickets) return <PageHeader title={t("Tickets")} subtitle={t("{dept} doesn't take tickets.", { dept: dept.name })} />;
 
   const agent = isAgentOf(user, dept.id);
   const view = agent ? (VIEWS.find((v) => v === sp.view) ?? "queue") : "mine";
@@ -43,7 +42,7 @@ export default async function TicketsPage({ searchParams }: PageProps<"/tickets"
   const stateWhere: Prisma.TicketWhereInput =
     state === "active" ? { status: { in: ACTIVE_STATUSES } } : state === "any" ? {} : { status: state };
 
-  const [tickets, counts, statusCounts] = await Promise.all([
+  const [tickets, statusCounts] = await Promise.all([
     prisma.ticket.findMany({
       where: { AND: [...where, stateWhere, { departmentId: dept.id }] },
       include: {
@@ -55,12 +54,6 @@ export default async function TicketsPage({ searchParams }: PageProps<"/tickets"
       },
       orderBy: [{ updatedAt: "desc" }],
       take: 200,
-    }),
-    // Active tickets per department for the tab badges.
-    prisma.ticket.groupBy({
-      by: ["departmentId"],
-      where: { AND: [visibleTickets(user), { status: { in: ACTIVE_STATUSES } }] },
-      _count: true,
     }),
     // Tickets per status in this department and view, for the status pills.
     prisma.ticket.groupBy({ by: ["status"], where: { AND: [...where, { departmentId: dept.id }] }, _count: true }),
@@ -74,7 +67,7 @@ export default async function TicketsPage({ searchParams }: PageProps<"/tickets"
 
   const href = (patch: Record<string, string | null>) => {
     const p = new URLSearchParams();
-    const merged = { dept: dept.slug, view, state, q: q || null, t: open, ...patch };
+    const merged = { view, state, q: q || null, t: open, ...patch };
     for (const [k, v] of Object.entries(merged)) if (v) p.set(k, v);
     return `/tickets?${p}`;
   };
@@ -91,36 +84,13 @@ export default async function TicketsPage({ searchParams }: PageProps<"/tickets"
     <>
       <PageHeader
         title={t("Tickets")}
-        subtitle={t("Requests to IT, Facilities, Electrician and Kitchen & Dining")}
+        subtitle={<DeptBadge dept={dept} />}
         actions={
-          <Link href={`/tickets/new?dept=${dept.slug}`} className="btn btn-primary">
+          <Link href="/tickets/new" className="btn btn-primary">
             <Plus className="size-4" /> {t("New ticket")}
           </Link>
         }
       />
-
-      <div className="mb-5 flex gap-1 overflow-x-auto border-b border-line">
-        {departments.map((d) => {
-          const count = counts.find((c) => c.departmentId === d.id)?._count ?? 0;
-          // Switching department starts from that department's default view.
-          const tab = new URLSearchParams({ dept: d.slug, ...(state !== "active" ? { state } : {}) });
-          return (
-            <Link
-              key={d.id}
-              href={`/tickets?${tab}`}
-              className={cn(
-                "-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium",
-                d.id === dept.id ? "text-fg" : "border-transparent text-dim hover:text-fg",
-              )}
-              style={d.id === dept.id ? { borderColor: d.color } : undefined}
-            >
-              <span className="size-2.5 rounded-full" style={{ background: d.color }} />
-              {d.name}
-              {count > 0 && <span className="rounded-full bg-panel-muted px-1.5 text-xs text-dim tabular-nums">{count}</span>}
-            </Link>
-          );
-        })}
-      </div>
 
       <FilterTabs items={viewTabs} active={view} />
 
@@ -142,7 +112,6 @@ export default async function TicketsPage({ searchParams }: PageProps<"/tickets"
           ))}
         </div>
         <form className="ml-auto flex gap-2" action="/tickets">
-          <input type="hidden" name="dept" value={dept.slug} />
           <input type="hidden" name="view" value={view} />
           <input type="hidden" name="state" value={state} />
           {open && <input type="hidden" name="t" value={open} />}

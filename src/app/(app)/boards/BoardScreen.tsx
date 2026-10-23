@@ -4,8 +4,8 @@ import type { Board } from "@/generated/prisma";
 import { Badge } from "@/components/Badge";
 import { Field, PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
-import { boardDepartments } from "@/lib/boardAccess";
 import { BOARD_COLORS, CARD_COLORS, initials } from "@/lib/boards";
+import { getDepartment } from "@/lib/department";
 import { fmtDate, fmtDateTime, fmtRelative, startOfToday, toLocalInput } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { canViewTicket } from "@/lib/tickets";
@@ -31,7 +31,7 @@ export async function BoardScreen({
   const user = await requireUser();
   const basePath = department ? `/boards/${department.slug}` : "/boards";
 
-  const [full, departments] = await Promise.all([
+  const [full, current] = await Promise.all([
     prisma.board.findUniqueOrThrow({
       where: { id: board.id },
       include: {
@@ -46,7 +46,7 @@ export async function BoardScreen({
         },
       },
     }),
-    boardDepartments(),
+    getDepartment(),
   ]);
 
   const today = startOfToday();
@@ -70,9 +70,11 @@ export async function BoardScreen({
     })),
   }));
 
+  // The picked department's board, plus another department's board when opened by link.
+  const shared = [current, department?.id !== current?.id ? department : undefined].filter((d) => d != null);
   const tabs = [
     { href: "/boards", label: t("My board"), icon: User, active: !department },
-    ...departments.map((d) => ({ href: `/boards/${d.slug}`, label: d.name, icon: Users, active: d.id === department?.id })),
+    ...shared.map((d) => ({ href: `/boards/${d.slug}`, label: d.name, icon: Users, active: d.id === department?.id })),
   ];
 
   return (

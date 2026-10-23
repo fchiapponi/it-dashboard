@@ -1,14 +1,16 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { AlertTriangle, CalendarDays, ChevronRight, Clock, Inbox, MapPin, Package, Plus, Ticket, UserCheck, UserRound, Users } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, CalendarDays, ChevronRight, Clock, Inbox, MapPin, Package, Plus, Ticket, UserCheck, UserRound, Users } from "lucide-react";
 import { Badge, DeptBadge, Empty, PageHeader } from "@/components/ui";
-import { isAgent, isReception, requireUser } from "@/lib/auth";
+import { isAgentOf, isReception, requireUser } from "@/lib/auth";
+import { getDepartment } from "@/lib/department";
 import { fmtDate, fmtRelative, fmtTime, startOfToday } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 import { INTL } from "@/i18n";
 import { getI18n } from "@/i18n/server";
 import { ACTIVE_STATUSES, lowStockCount } from "@/lib/tickets";
+import { chooseDepartment, leaveDepartment } from "./actions";
 
 const DAY = 864e5;
 
@@ -20,24 +22,24 @@ const STATUS_BAR = [
   { key: "standby", label: "Standby", bar: "bg-cyan-500" },
 ] as const;
 
-/** Overview first (tiles, one card per department), then the tickets, events and desk items behind the numbers. */
+/**
+ * The home page: first pick a department, then its overview (tiles, the department's card), then the
+ * tickets, events and desk items behind the numbers. Only the picked department's data is shown.
+ */
 export default async function Dashboard() {
   const user = await requireUser();
+  const department = await getDepartment();
+  if (!department) return <DepartmentPicker />;
   const { t, locale } = await getI18n();
-  const agent = isAgent(user);
-  const reception = isReception(user);
+  const agent = isAgentOf(user, department.id);
+  const reception = department.slug === "reception" && isReception(user);
   const today = startOfToday();
   const tomorrow = new Date(today.getTime() + DAY);
-  const active = { status: { in: ACTIVE_STATUSES } };
+  const active = { status: { in: ACTIVE_STATUSES }, departmentId: department.id };
 
-  // Departments whose queue the user works, each shown separately: tickets of different departments are never mixed.
-  const departments = agent
-    ? await prisma.department.findMany({
-        where: { takesTickets: true, ...(user.isAdmin && !user.departmentIds.length ? {} : { id: { in: user.departmentIds } }) },
-        orderBy: { name: "asc" },
-      })
-    : [];
-  const inDepts = { departmentId: { in: departments.map((d) => d.id) } };
+  // The department's queue card, for the people who work it.
+  const departments = agent && department.takesTickets ? [department] : [];
+  const inDepts = { departmentId: department.id };
   const ticketRow = { department: true, assignees: { select: { userId: true } } } as const;
 
   const [assignedToMe, myOpen, myDeliveries, lowStock, byStatus, unassigned, urgent, overdue, attention, mine, events, myParcels] =
@@ -45,7 +47,7 @@ export default async function Dashboard() {
       prisma.ticket.count({ where: { ...active, assignees: { some: { userId: user.id } } } }),
       prisma.ticket.count({ where: { ...active, requesterId: user.id } }),
       prisma.delivery.count({ where: { recipientId: user.id, status: "received" } }),
-      agent ? lowStockCount(user.isAdmin ? undefined : user.departmentIds) : 0,
+      agent ? lowStockCount([department.id]) : 0,
       prisma.ticket.groupBy({ by: ["departmentId", "status"], where: { ...inDepts, ...active }, _count: true }),
       prisma.ticket.groupBy({ by: ["departmentId"], where: { ...inDepts, ...active, assignees: { none: {} } }, _count: true }),
       prisma.ticket.groupBy({ by: ["departmentId"], where: { ...inDepts, ...active, priority: "urgent" }, _count: true }),
@@ -112,11 +114,22 @@ export default async function Dashboard() {
     <>
       <PageHeader
         title={t("Hello, {name}", { name: firstName })}
-        subtitle={<span className="first-letter:uppercase">{longDate.format(new Date())}</span>}
+        subtitle={
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="first-letter:uppercase">{longDate.format(new Date())}</span>·<DeptBadge dept={department} />
+          </span>
+        }
         actions={
-          <Link href="/tickets/new" className="btn btn-primary">
-            <Plus className="size-4" /> {t("New ticket")}
-          </Link>
+          <>
+            <form action={leaveDepartment}>
+              <button className="btn">
+                <ArrowLeftRight className="size-4" /> {t("Change department")}
+              </button>
+            </form>
+            <Link href="/tickets/new" className="btn btn-primary">
+              <Plus className="size-4" /> {t("New ticket")}
+            </Link>
+          </>
         }
       />
 
@@ -132,7 +145,7 @@ export default async function Dashboard() {
       {departments.length > 0 && (
         <div className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {departments.map((d) => {
-            const q = (state: string) => `/tickets?dept=${d.slug}&state=${state}`;
+            const q = (state: string) => `/tickets?state=${state}`;
             const counts = STATUS_BAR.map((s) => ({ ...s, n: statusCount(d.id, s.key) }));
             const total = counts.reduce((a, s) => a + s.n, 0);
             const alerts = [
@@ -330,6 +343,35 @@ export default async function Dashboard() {
         </div>
       </div>
     </>
+  );
+}
+
+/** The home page until a department is picked; the choice is kept in a cookie. */
+async function DepartmentPicker() {
+  const { t } = await getI18n();
+  const departments = await prisma.department.findMany({ orderBy: { name: "asc" } });
+  return (
+    <div className="mx-auto max-w-4xl">
+      <PageHeader title={t("Choose your department")} subtitle={t("You'll only see its tickets, inventory and board. You can change it any time.")} />
+      {departments.length ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {departments.map((d) => (
+            <form key={d.id} action={chooseDepartment.bind(null, d.slug)}>
+              <button className="card flex h-full w-full overflow-hidden text-left transition hover:border-accent/40 hover:shadow-md">
+                <span className="w-1.5 shrink-0" style={{ background: d.color }} />
+                <span className="min-w-0 flex-1 p-5">
+                  <span className="block text-lg font-semibold">{d.name}</span>
+                  {d.description && <span className="mt-1 block text-sm text-dim">{d.description}</span>}
+                </span>
+                <ChevronRight className="m-5 size-5 shrink-0 self-center text-dim" />
+              </button>
+            </form>
+          ))}
+        </div>
+      ) : (
+        <Empty>{t("No departments yet. Add one in Admin.")}</Empty>
+      )}
+    </div>
   );
 }
 

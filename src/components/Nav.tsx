@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Boxes, CalendarDays, Clock, LayoutDashboard, LogOut, MonitorDot, Package, Settings, SquareKanban, Ticket, UserCheck, UtensilsCrossed } from "lucide-react";
+import { ArrowLeftRight, Boxes, CalendarDays, Clock, LayoutDashboard, LogOut, MonitorDot, Package, Settings, SquareKanban, Ticket, UserCheck, UtensilsCrossed } from "lucide-react";
 import { useI18n } from "@/i18n/client";
 import { LanguageSwitch } from "@/i18n/LanguageSwitch";
 import { cn } from "@/lib/utils";
@@ -29,7 +29,19 @@ const REVEAL = "whitespace-nowrap transition-opacity md:opacity-0 md:group-hover
 
 // On desktop the sidebar is a rail of icons; hovering it widens it over the
 // page to show the labels. On phones it stays a bar across the top.
-export function Nav({ items, user, signOut }: { items: NavItem[]; user: { name: string; email: string }; signOut?: () => Promise<void> }) {
+export function Nav({
+  items,
+  user,
+  department,
+  leaveDepartment,
+  signOut,
+}: {
+  items: NavItem[];
+  user: { name: string; email: string };
+  department?: { name: string; color: string };
+  leaveDepartment: () => Promise<void>;
+  signOut?: () => Promise<void>;
+}) {
   const { t } = useI18n();
   const pathname = usePathname();
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
@@ -61,6 +73,19 @@ export function Nav({ items, user, signOut }: { items: NavItem[]; user: { name: 
             )}
           </div>
         </div>
+        {department && (
+          // The department picked on the home page; clicking goes back to the picker.
+          <form action={leaveDepartment} className="px-3 pb-3">
+            <button
+              title={t("Change department")}
+              className="flex w-full items-center gap-2.5 rounded-lg border border-line px-3 py-2 text-left text-sm hover:bg-panel-muted"
+            >
+              <span className="size-2.5 shrink-0 rounded-full" style={{ background: department.color }} />
+              <span className={cn("min-w-0 flex-1 truncate font-medium", REVEAL)}>{department.name}</span>
+              <ArrowLeftRight className={cn("size-3.5 shrink-0 text-dim", REVEAL)} />
+            </button>
+          </form>
+        )}
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-1 md:flex-col md:overflow-visible md:pb-0">
           {items.map((item) => {
             const Icon = ICONS[item.icon];

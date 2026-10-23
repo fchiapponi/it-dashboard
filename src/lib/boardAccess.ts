@@ -11,11 +11,6 @@ export function canUseBoard(user: CurrentUser, board: BoardOwner) {
   return board.ownerId === user.id || !!board.departmentId;
 }
 
-/** Departments with a shared board, for the board tabs. */
-export function boardDepartments() {
-  return prisma.department.findMany({ orderBy: { name: "asc" } });
-}
-
 const starterLists = { create: DEFAULT_LISTS.map((title, position) => ({ title, position })) };
 
 /** The signed-in user's personal board, created on first use. */
