@@ -4,6 +4,7 @@ import { Check, SquareKanban, Maximize2, Plus, X } from "lucide-react";
 import { Badge, DeptBadge, Empty, Field, PageHeader, Section, toneClasses } from "@/components/ui";
 import { isAgentOf, requireUser } from "@/lib/auth";
 import { canUseBoard } from "@/lib/boardAccess";
+import { requireDepartment } from "@/lib/department";
 import { fmtDate, fmtDateTime, fmtRelative, label, startOfToday, TICKET_PRIORITIES, TICKET_STATUSES, toLocalInput } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { canViewTicket } from "@/lib/tickets";
@@ -19,6 +20,7 @@ import { StatusPills } from "./StatusPills";
  */
 export async function TicketDetail({ number, pane }: { number: number; pane?: { closeHref: string } }) {
   const user = await requireUser();
+  const current = await requireDepartment();
   const { t, locale } = await getI18n();
   // In the pane a stale link shouldn't take the whole list down with it.
   const missing = () => (pane ? <Empty>{t("Ticket #{number} not found.", { number })}</Empty> : notFound());
@@ -38,7 +40,8 @@ export async function TicketDetail({ number, pane }: { number: number; pane?: { 
       cards: { include: { list: { include: { board: { include: { department: true } } } } }, orderBy: { createdAt: "asc" } },
     },
   });
-  if (!ticket || !canViewTicket(user, ticket)) return missing();
+  // Each department sees only its own tickets.
+  if (!ticket || ticket.departmentId !== current.id || !canViewTicket(user, ticket)) return missing();
 
   const agent = isAgentOf(user, ticket.departmentId);
   const assigneeIds = ticket.assignees.map((a) => a.userId);

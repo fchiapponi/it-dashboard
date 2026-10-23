@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { assert, isAgentOf, requireUser } from "@/lib/auth";
 import { fmtDate, fromLocalInput, int, label, oneOf, req, str, TICKET_PRIORITIES, TICKET_STATUSES } from "@/lib/format";
+import { requireDepartment } from "@/lib/department";
 import { prisma } from "@/lib/prisma";
 import { openDepartmentBoard, openMyBoard } from "@/lib/boardAccess";
 import { DEFAULT_LISTS } from "@/lib/boards";
@@ -11,7 +12,8 @@ import { canViewTicket, createTicketRecord, isDoneStatus, syncTicketCards } from
 
 export async function createTicket(form: FormData) {
   const user = await requireUser();
-  const department = await prisma.department.findUniqueOrThrow({ where: { id: req(form, "departmentId") } });
+  const department = await requireDepartment();
+  assert(req(form, "departmentId") === department.id, "Tickets go to the department picked on the home page.");
   assert(department.takesTickets, "This department doesn't accept tickets.");
 
   const categoryId = str(form, "categoryId");
@@ -21,7 +23,7 @@ export async function createTicket(form: FormData) {
   }
   const assetTag = str(form, "assetTag");
   const asset = assetTag ? await prisma.asset.findUnique({ where: { tag: assetTag.toUpperCase() } }) : null;
-  if (assetTag && !asset) throw new Error(`No asset with tag ${assetTag}.`);
+  if (assetTag && asset?.departmentId !== department.id) throw new Error(`No ${department.name} asset with tag ${assetTag}.`);
 
   const ticket = await prisma.$transaction((tx) =>
     createTicketRecord(

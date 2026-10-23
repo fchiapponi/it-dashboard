@@ -126,9 +126,11 @@ export default async function Dashboard() {
                 <ArrowLeftRight className="size-4" /> {t("Change department")}
               </button>
             </form>
-            <Link href="/tickets/new" className="btn btn-primary">
-              <Plus className="size-4" /> {t("New ticket")}
-            </Link>
+            {department.takesTickets && (
+              <Link href="/tickets/new" className="btn btn-primary">
+                <Plus className="size-4" /> {t("New ticket")}
+              </Link>
+            )}
           </>
         }
       />

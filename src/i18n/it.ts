@@ -144,7 +144,6 @@ export const it = {
   Use: "Usa",
 
   // ------------------------------------------------------------ new ticket
-  "Who should handle this?": "Chi deve occuparsene?",
   "Short summary": "Breve riepilogo",
   "e.g. Projector in room 12 won't turn on": "es. Il proiettore dell'aula 12 non si accende",
   "Urgent — class or safety affected": "Urgente — lezione o sicurezza a rischio",
@@ -152,7 +151,6 @@ export const it = {
   "Asset tag (optional — printed on the QR label)": "Codice bene (facoltativo — stampato sull'etichetta QR)",
   "Needed by (optional)": "Serve entro (facoltativo)",
   "Submit ticket": "Invia ticket",
-  "Describe the problem and pick the department that should fix it.": "Descrivi il problema e scegli il reparto che deve risolverlo.",
   "Problem with {name} ({tag})": "Problema con {name} ({tag})",
 
   // ------------------------------------------------------------ boards

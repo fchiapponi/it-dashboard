@@ -5,6 +5,7 @@ import { ArrowLeft, Copy, Printer, Trash2, TriangleAlert } from "lucide-react";
 import { Badge, DeptBadge, Empty, PageHeader, Section } from "@/components/ui";
 import { fieldLabelsFor, hasAssignedTo, parseExtra, parseReadings } from "@/lib/assets";
 import { isAgentOf, requireUser } from "@/lib/auth";
+import { requireDepartment } from "@/lib/department";
 import { fmtDate, fmtDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { ipField } from "@/lib/printerSnmp";
@@ -33,7 +34,8 @@ export default async function AssetPage({ params }: PageProps<"/inventory/[tag]"
       activity: { include: { actor: true }, orderBy: { createdAt: "desc" }, take: 50 },
     },
   });
-  if (!asset) notFound();
+  // Each department sees only its own inventory.
+  if (!asset || asset.departmentId !== (await requireDepartment()).id) notFound();
 
   const reportButton = (
     <Link href={`/tickets/new?asset=${asset.tag}`} className="btn btn-primary">

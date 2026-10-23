@@ -1,50 +1,26 @@
 "use client";
 
-import { useState } from "react";
 import { Field } from "@/components/ui";
 import { useI18n } from "@/i18n/client";
-import { cn } from "@/lib/utils";
 
 type Dept = { id: string; name: string; color: string; description: string | null; categories: { id: string; name: string }[] };
 
 export function TicketForm({
   action,
-  departments,
+  department,
   locations,
   defaults,
 }: {
   action: (form: FormData) => Promise<void>;
-  departments: Dept[];
+  department: Dept;
   locations: { id: string; name: string }[];
-  defaults: { departmentId?: string; assetTag?: string; title?: string; locationId?: string };
+  defaults: { assetTag?: string; title?: string; locationId?: string };
 }) {
   const { t } = useI18n();
-  const [deptId, setDeptId] = useState(defaults.departmentId ?? departments[0]?.id);
-  const dept = departments.find((d) => d.id === deptId);
 
   return (
     <form action={action} className="card space-y-5 p-6">
-      <div>
-        <span className="label">{t("Who should handle this?")}</span>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {departments.map((d) => (
-            <label
-              key={d.id}
-              className={cn(
-                "cursor-pointer rounded-lg border p-3 transition",
-                d.id === deptId ? "border-accent ring-2 ring-accent/20" : "border-line hover:bg-panel-muted",
-              )}
-            >
-              <input type="radio" name="departmentId" value={d.id} checked={d.id === deptId} onChange={() => setDeptId(d.id)} className="sr-only" />
-              <div className="flex items-center gap-2 font-medium">
-                <span className="size-2.5 rounded-full" style={{ background: d.color }} />
-                {d.name}
-              </div>
-              {d.description && <div className="mt-1 text-xs text-dim">{d.description}</div>}
-            </label>
-          ))}
-        </div>
-      </div>
+      <input type="hidden" name="departmentId" value={department.id} />
 
       <Field label={t("Short summary")}>
         <input name="title" required defaultValue={defaults.title} placeholder={t("e.g. Projector in room 12 won't turn on")} className="input" />
@@ -52,9 +28,9 @@ export function TicketForm({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label={t("Category")}>
-          <select name="categoryId" className="input" key={deptId}>
+          <select name="categoryId" className="input">
             <option value="">—</option>
-            {dept?.categories.map((c) => (
+            {department.categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
