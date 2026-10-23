@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { assert } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const DEPARTMENT_COOKIE = "tasis_department";
@@ -20,4 +21,14 @@ export async function requireDepartment() {
   const department = await getDepartment();
   if (!department) redirect("/");
   return department;
+}
+
+/** A page that belongs to one department (monitor and hours: IT, dining: kitchen, ...); home page otherwise. */
+export async function requireDepartmentPage(slug: string) {
+  if ((await getDepartment())?.slug !== slug) redirect("/");
+}
+
+/** The same check for that page's server actions. */
+export async function assertDepartment(slug: string) {
+  assert((await getDepartment())?.slug === slug, "That belongs to another department.");
 }

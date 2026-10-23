@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 import { Field, PageHeader, Section, Stat } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { requireDepartmentPage } from "@/lib/department";
 import { toLocalInput } from "@/lib/format";
 import { DAY_HOURS, daysOff, ENTRY_KINDS, ENTRY_LABELS, expectedHours, holiday, overtime, workedHours } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
@@ -23,6 +24,8 @@ const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 
 export default async function HoursPage({ searchParams }: PageProps<"/hours">) {
   const user = await requireUser();
+  // IT's page: only with IT picked on the home page.
+  await requireDepartmentPage("it");
   const sp = await searchParams;
   const { t, locale } = await getI18n();
 

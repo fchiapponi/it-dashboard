@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { assert, isReception, requireUser } from "@/lib/auth";
 import { fromLocalInput, req, str } from "@/lib/format";
+import { assertDepartment } from "@/lib/department";
 import { prisma } from "@/lib/prisma";
 
 function visitorFields(form: FormData) {
@@ -20,6 +21,7 @@ function visitorFields(form: FormData) {
 /** Staff announce a visitor they're expecting; reception sees them on the day. */
 export async function preRegisterVisitor(form: FormData) {
   const user = await requireUser();
+  await assertDepartment("reception");
   const expectedAt = fromLocalInput(req(form, "expectedAt"));
   assert(expectedAt, "Invalid date.");
   await prisma.visitor.create({
@@ -31,6 +33,7 @@ export async function preRegisterVisitor(form: FormData) {
 /** Reception: someone walked in without being announced. */
 export async function walkInVisitor(form: FormData) {
   const user = await requireUser();
+  await assertDepartment("reception");
   assert(isReception(user));
   await prisma.visitor.create({
     data: { ...visitorFields(form), badgeNumber: str(form, "badgeNumber"), checkedInAt: new Date(), createdById: user.id },
@@ -40,6 +43,7 @@ export async function walkInVisitor(form: FormData) {
 
 export async function checkInVisitor(id: string, form: FormData) {
   const user = await requireUser();
+  await assertDepartment("reception");
   assert(isReception(user));
   await prisma.visitor.update({ where: { id }, data: { checkedInAt: new Date(), badgeNumber: str(form, "badgeNumber") } });
   revalidatePath("/visitors");
@@ -47,6 +51,7 @@ export async function checkInVisitor(id: string, form: FormData) {
 
 export async function checkOutVisitor(id: string) {
   const user = await requireUser();
+  await assertDepartment("reception");
   assert(isReception(user));
   await prisma.visitor.update({ where: { id }, data: { checkedOutAt: new Date() } });
   revalidatePath("/visitors");
@@ -55,6 +60,7 @@ export async function checkOutVisitor(id: string) {
 /** Removes a pre-registration that hasn't arrived yet. */
 export async function cancelVisitor(id: string) {
   const user = await requireUser();
+  await assertDepartment("reception");
   const v = await prisma.visitor.findUniqueOrThrow({ where: { id } });
   assert(!v.checkedInAt, "This visitor has already checked in.");
   assert(isReception(user) || v.createdById === user.id || v.hostId === user.id);

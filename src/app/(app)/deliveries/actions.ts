@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { assert, isReception, requireUser } from "@/lib/auth";
 import { int, str } from "@/lib/format";
+import { assertDepartment } from "@/lib/department";
 import { prisma } from "@/lib/prisma";
 
 export async function logDelivery(form: FormData) {
   const user = await requireUser();
+  await assertDepartment("reception");
   assert(isReception(user));
   const recipientId = str(form, "recipientId");
   const recipient = recipientId ? await prisma.user.findUnique({ where: { id: recipientId } }) : null;
@@ -31,6 +33,7 @@ export async function logDelivery(form: FormData) {
 
 export async function markCollected(id: string, form: FormData) {
   const user = await requireUser();
+  await assertDepartment("reception");
   assert(isReception(user));
   const d = await prisma.delivery.findUniqueOrThrow({ where: { id } });
   await prisma.delivery.update({
@@ -42,6 +45,7 @@ export async function markCollected(id: string, form: FormData) {
 
 export async function markReturned(id: string) {
   const user = await requireUser();
+  await assertDepartment("reception");
   assert(isReception(user));
   await prisma.delivery.update({ where: { id }, data: { status: "returned", collectedAt: new Date() } });
   revalidatePath("/deliveries");
@@ -49,6 +53,7 @@ export async function markReturned(id: string) {
 
 export async function undoCollected(id: string) {
   const user = await requireUser();
+  await assertDepartment("reception");
   assert(isReception(user));
   await prisma.delivery.update({ where: { id }, data: { status: "received", collectedAt: null, collectedBy: null } });
   revalidatePath("/deliveries");

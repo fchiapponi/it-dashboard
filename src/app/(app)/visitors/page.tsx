@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LogIn, LogOut, X } from "lucide-react";
 import { Badge, Empty, Field, PageHeader, Section, TableWrap } from "@/components/ui";
 import { isReception, requireUser } from "@/lib/auth";
+import { requireDepartmentPage } from "@/lib/department";
 import { fmtDateTime, fmtTime, startOfToday, toLocalInput } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { getI18n } from "@/i18n/server";
@@ -47,6 +48,8 @@ async function VisitorFields({ hosts }: { hosts: HostOption[] }) {
 
 export default async function VisitorsPage() {
   const user = await requireUser();
+  // Reception's page: only with Reception picked on the home page.
+  await requireDepartmentPage("reception");
   const { t, locale } = await getI18n();
   const reception = isReception(user);
   const today = startOfToday();

@@ -138,7 +138,9 @@ export default async function Dashboard() {
       <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {agent && <Tile icon={UserCheck} label={t("Assigned to me")} value={assignedToMe} href="/tickets?view=assigned" />}
         <Tile icon={Ticket} label={t("My open requests")} value={myOpen} href="/tickets?view=mine" />
-        <Tile icon={Package} label={t("Deliveries for me")} value={myDeliveries} tone={myDeliveries ? "amber" : undefined} href="/deliveries" />
+        {reception && (
+          <Tile icon={Package} label={t("Deliveries for me")} value={myDeliveries} tone={myDeliveries ? "amber" : undefined} href="/deliveries" />
+        )}
         {agent && (
           <Tile icon={AlertTriangle} label={t("Supplies low")} value={lowStock} tone={lowStock ? "amber" : undefined} href="/inventory/supplies" />
         )}
@@ -324,7 +326,7 @@ export default async function Dashboard() {
             )}
           </Panel>
 
-          {myParcels.length > 0 && (
+          {reception && myParcels.length > 0 && (
             <Panel icon={Package} title={t("Deliveries for me")} href="/deliveries" more={t("View all")}>
               <ul className="divide-y divide-line text-sm">
                 {myParcels.map((p) => (

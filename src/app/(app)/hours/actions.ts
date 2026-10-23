@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { assertDepartment } from "@/lib/department";
 import { int, oneOf, req, str } from "@/lib/format";
 import { daysBetween, DAY_HOURS, ENTRY_KINDS, expectedHours } from "@/lib/hours";
 import { prisma } from "@/lib/prisma";
@@ -19,8 +20,15 @@ function formDays(form: FormData, workingOnly: boolean) {
   return workingOnly ? days.filter((d) => expectedHours(d) > 0) : days;
 }
 
-export async function saveDay(form: FormData) {
+/** Hours are IT's: only with IT picked on the home page. */
+async function itUser() {
   const user = await requireUser();
+  await assertDepartment("it");
+  return user;
+}
+
+export async function saveDay(form: FormData) {
+  const user = await itUser();
   const kind = oneOf(str(form, "kind"), ENTRY_KINDS, "work");
   const hours = Number((str(form, "hours") ?? String(DAY_HOURS)).replace(",", "."));
   if (!Number.isFinite(hours) || hours < 0 || hours > 24) throw new Error("Hours must be between 0 and 24.");
@@ -40,13 +48,13 @@ export async function saveDay(form: FormData) {
 
 /** Puts the days back to the default 8 hours. */
 export async function resetDay(form: FormData) {
-  const user = await requireUser();
+  const user = await itUser();
   await prisma.timeEntry.deleteMany({ where: { userId: user.id, day: { in: formDays(form, false) } } });
   revalidatePath("/hours");
 }
 
 export async function setVacationAllowance(form: FormData) {
-  const user = await requireUser();
+  const user = await itUser();
   const days = int(form, "vacationDays");
   if (days === null || days < 0 || days > 100) throw new Error("Enter a number of days between 0 and 100.");
   await prisma.user.update({ where: { id: user.id }, data: { vacationDays: days } });

@@ -1,6 +1,7 @@
 import { Check, Undo2 } from "lucide-react";
 import { Badge, Empty, Field, PageHeader, Section, TableWrap } from "@/components/ui";
 import { isReception, requireUser } from "@/lib/auth";
+import { requireDepartmentPage } from "@/lib/department";
 import { fmtDateTime, fmtRelative } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { getI18n } from "@/i18n/server";
@@ -10,6 +11,8 @@ const CARRIERS = ["Swiss Post", "DHL", "UPS", "FedEx", "DPD", "TNT", "Planzer", 
 
 export default async function DeliveriesPage() {
   const user = await requireUser();
+  // Reception's page: only with Reception picked on the home page.
+  await requireDepartmentPage("reception");
   const { t, locale } = await getI18n();
   const include = { recipient: true, receivedBy: true } as const;
 

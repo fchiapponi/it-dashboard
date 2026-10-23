@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { PrintButton } from "@/components/PrintButton";
 import { isReception, requireUser } from "@/lib/auth";
+import { requireDepartmentPage } from "@/lib/department";
 import { fmtDate, fmtTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { getI18n } from "@/i18n/server";
@@ -8,6 +9,8 @@ import { getI18n } from "@/i18n/server";
 /** Printable visitor badge (fits a standard 86×54 mm badge sleeve). */
 export default async function VisitorBadgePage({ params }: PageProps<"/visitors/[id]/badge">) {
   const user = await requireUser();
+  // Reception's page: only with Reception picked on the home page.
+  await requireDepartmentPage("reception");
   if (!isReception(user)) notFound();
   const { t, locale } = await getI18n();
   const v = await prisma.visitor.findUnique({ where: { id: (await params).id }, include: { host: true } });
