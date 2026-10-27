@@ -1,10 +1,10 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Boxes, CalendarDays, Clock, LayoutDashboard, LogOut, MonitorDot, Package, Settings, SquareKanban, Ticket, UserCheck, UtensilsCrossed } from "lucide-react";
+import { Boxes, CalendarDays, ChevronRight, Clock, LayoutDashboard, LogOut, MonitorDot, Package, Settings, SquareKanban, Ticket, UserCheck, UtensilsCrossed } from "lucide-react";
 import { useI18n } from "@/i18n/client";
 import { LanguageSwitch } from "@/i18n/LanguageSwitch";
 import { cn } from "@/lib/utils";
@@ -59,6 +59,10 @@ export function Nav({
   const all = [...items, ...sections.flatMap((s) => s.items), ...footer];
   const best = Math.max(...all.map((i) => score(i.href)));
   const activeHref = best >= 0 ? all.find((i) => score(i.href) === best)?.href : undefined;
+
+  // Departments start closed and open on click; the one holding the current page starts open.
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  const isOpen = (section: NavSection) => toggled[section.name] ?? section.items.some((i) => i.href === activeHref);
 
   const link = (item: NavItem) => {
     const Icon = ICONS[item.icon];
@@ -118,12 +122,21 @@ export function Nav({
           {items.map(link)}
           {sections.map((section) => (
             <Fragment key={section.name}>
-              {/* The department's heading; collapsed, just its color. */}
-              <div className="flex shrink-0 items-center gap-2.5 px-3 py-2 md:mt-3 md:py-1" title={section.name}>
+              {/* The department's heading opens and closes it; with the rail collapsed, just its color. */}
+              <button
+                type="button"
+                onClick={() => setToggled((prev) => ({ ...prev, [section.name]: !isOpen(section) }))}
+                aria-expanded={isOpen(section)}
+                title={section.name}
+                className="flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left hover:bg-panel-muted md:mt-1"
+              >
                 <span className="mx-0.5 size-2.5 shrink-0 rounded-full" style={{ background: section.color }} />
-                <span className={cn("truncate text-xs font-semibold tracking-wide text-dim uppercase", REVEAL)}>{section.name}</span>
-              </div>
-              {section.items.map(link)}
+                <span className={cn("min-w-0 flex-1 truncate text-xs font-semibold tracking-wide text-dim uppercase", REVEAL)}>
+                  {section.name}
+                </span>
+                <ChevronRight className={cn("size-3.5 shrink-0 text-dim transition-transform", isOpen(section) && "rotate-90", REVEAL)} />
+              </button>
+              {isOpen(section) && section.items.map(link)}
             </Fragment>
           ))}
           {footer.length > 0 && <div className="shrink-0 md:mt-3" />}
