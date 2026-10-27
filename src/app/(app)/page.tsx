@@ -365,7 +365,6 @@ async function DepartmentPicker() {
                 <span className="w-1.5 shrink-0" style={{ background: d.color }} />
                 <span className="min-w-0 flex-1 p-5">
                   <span className="block text-lg font-semibold">{d.name}</span>
-                  {d.description && <span className="mt-1 block text-sm text-dim">{d.description}</span>}
                 </span>
                 <ChevronRight className="m-5 size-5 shrink-0 self-center text-dim" />
               </button>
