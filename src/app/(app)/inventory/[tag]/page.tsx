@@ -5,7 +5,6 @@ import { ArrowLeft, Copy, Printer, Trash2, TriangleAlert } from "lucide-react";
 import { Badge, DeptBadge, Empty, PageHeader, Section } from "@/components/ui";
 import { fieldLabelsFor, hasAssignedTo, parseExtra, parseReadings } from "@/lib/assets";
 import { isAgentOf, requireUser } from "@/lib/auth";
-import { requireDepartment } from "@/lib/department";
 import { fmtDate, fmtDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { ipField } from "@/lib/printerSnmp";
@@ -34,33 +33,14 @@ export default async function AssetPage({ params }: PageProps<"/inventory/[tag]"
       activity: { include: { actor: true }, orderBy: { createdAt: "desc" }, take: 50 },
     },
   });
-  // Each department sees only its own inventory.
-  if (!asset || asset.departmentId !== (await requireDepartment()).id) notFound();
+  // Each department sees only its own inventory; admins see every one.
+  if (!asset || !isAgentOf(user, asset.departmentId)) notFound();
 
   const reportButton = (
     <Link href={`/tickets/new?asset=${asset.tag}`} className="btn btn-primary">
       <TriangleAlert className="size-4" /> {t("Report a problem")}
     </Link>
   );
-
-  // Anyone scanning the QR label lands here: non-agents only get the basics
-  // and a shortcut to open a ticket about this item.
-  if (!isAgentOf(user, asset.departmentId)) {
-    return (
-      <div className="mx-auto max-w-md">
-        <div className="card p-6 text-center">
-          <div className="font-mono text-xs text-dim">{asset.tag}</div>
-          <h1 className="mt-1 text-xl font-semibold">{asset.name}</h1>
-          <p className="mt-1 text-sm text-dim">
-            {asset.type}
-            {asset.location && ` · ${asset.location.name}`}
-          </p>
-          <div className="mt-6">{reportButton}</div>
-          <p className="mt-3 text-xs text-dim">{t("Goes to {dept} with this item already attached.", { dept: asset.department.name })}</p>
-        </div>
-      </div>
-    );
-  }
 
   const readings = parseReadings(asset.readings);
   const [departments, locations, qr, fieldLabels, showAssignedTo] = await Promise.all([

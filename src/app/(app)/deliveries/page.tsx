@@ -11,7 +11,7 @@ const CARRIERS = ["Swiss Post", "DHL", "UPS", "FedEx", "DPD", "TNT", "Planzer", 
 
 export default async function DeliveriesPage() {
   const user = await requireUser();
-  // Reception's page: only with Reception picked on the home page.
+  // Reception's page: for Reception's members (and admins).
   await requireDepartmentPage("reception");
   const { t, locale } = await getI18n();
   const include = { recipient: true, receivedBy: true } as const;

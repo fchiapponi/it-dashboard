@@ -24,7 +24,7 @@ const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 
 export default async function HoursPage({ searchParams }: PageProps<"/hours">) {
   const user = await requireUser();
-  // IT's page: only with IT picked on the home page.
+  // IT's page: for IT's members (and admins).
   await requireDepartmentPage("it");
   const sp = await searchParams;
   const { t, locale } = await getI18n();

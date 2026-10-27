@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { Badge, Empty, Field, PageHeader, Section, TableWrap } from "@/components/ui";
-import { isAgentOf, requireUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { requireDepartment } from "@/lib/department";
 import { fmtRelative } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -10,11 +9,10 @@ import { adjustStock, createSupply, deleteSupply, updateSupply } from "../action
 import { InventoryTabs } from "../Tabs";
 
 export default async function SuppliesPage({ searchParams }: PageProps<"/inventory/supplies">) {
-  const user = await requireUser();
-  // Only the department picked on the home page.
-  const dept = await requireDepartment();
-  if (!isAgentOf(user, dept.id)) notFound();
+  await requireUser();
   const sp = await searchParams;
+  // One of the user's departments, picked in the sidebar.
+  const dept = await requireDepartment(sp.dept);
   const { t, locale } = await getI18n();
   const editId = typeof sp.edit === "string" ? sp.edit : null;
 
@@ -38,7 +36,7 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
   return (
     <>
       <PageHeader title={t("{dept} inventory", { dept: dept.name })} subtitle={t("Consumables: toner, cables, spare parts, cleaning products…")} />
-      <InventoryTabs active="supplies" lowStock={low.length} />
+      <InventoryTabs active="supplies" dept={dept.slug} lowStock={low.length} />
 
       <Section title={t("Stock")} className="mb-6">
         {sorted.length === 0 ? (
@@ -86,7 +84,7 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
                           </Field>
                           <div className="flex gap-2 sm:col-span-6">
                             <button className="btn btn-primary">{t("Save")}</button>
-                            <Link href="/inventory/supplies" className="btn">
+                            <Link href={`/inventory/supplies?dept=${dept.slug}`} className="btn">
                               {t("Cancel")}
                             </Link>
                             <button formAction={deleteSupply.bind(null, s.id)} className="btn btn-danger ml-auto">
@@ -115,7 +113,7 @@ export default async function SuppliesPage({ searchParams }: PageProps<"/invento
                         </form>
                       </td>
                       <td>
-                        <Link href={`/inventory/supplies?edit=${s.id}`} className="link text-xs">
+                        <Link href={`/inventory/supplies?dept=${dept.slug}&edit=${s.id}`} className="link text-xs">
                           {t("Edit")}
                         </Link>
                       </td>

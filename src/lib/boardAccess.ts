@@ -1,14 +1,14 @@
 import "server-only";
 import { notFound } from "next/navigation";
-import { assert, requireUser, type CurrentUser } from "@/lib/auth";
+import { assert, isAgentOf, requireUser, type CurrentUser } from "@/lib/auth";
 import { DEFAULT_LISTS } from "@/lib/boards";
 import { prisma } from "@/lib/prisma";
 
 type BoardOwner = { ownerId: string | null; departmentId: string | null };
 
-/** Personal boards are private; department boards are shared with everyone. */
+/** Personal boards are private; a department's board is shared by its members (and admins). */
 export function canUseBoard(user: CurrentUser, board: BoardOwner) {
-  return board.ownerId === user.id || !!board.departmentId;
+  return board.ownerId === user.id || (!!board.departmentId && isAgentOf(user, board.departmentId));
 }
 
 const starterLists = { create: DEFAULT_LISTS.map((title, position) => ({ title, position })) };
@@ -28,7 +28,7 @@ export async function openMyBoard() {
 export async function openDepartmentBoard(slug: string) {
   const user = await requireUser();
   const department = await prisma.department.findUnique({ where: { slug } });
-  if (!department) notFound();
+  if (!department || !isAgentOf(user, department.id)) notFound();
   const board = await prisma.board.upsert({
     where: { departmentId: department.id },
     update: {},

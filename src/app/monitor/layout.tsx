@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
 import { AppNav } from "@/components/AppNav";
-import { redirect } from "next/navigation";
-import { isAgentOf, requireUser } from "@/lib/auth";
-import { getDepartment } from "@/lib/department";
+import { requireUser } from "@/lib/auth";
+import { requireDepartmentPage } from "@/lib/department";
 import "./monitor.css";
 
 const jetbrainsMono = JetBrains_Mono({
@@ -21,9 +20,8 @@ export const metadata: Metadata = {
 // once on the TV's browser keeps it signed in for the session's 30 days.
 export default async function MonitorLayout({ children }: LayoutProps<"/monitor">) {
   const user = await requireUser();
-  // IT's screen: only with IT picked on the home page.
-  const department = await getDepartment();
-  if (department?.slug !== "it" || !isAgentOf(user, department.id)) redirect("/");
+  // IT's screen: for IT's members (and admins).
+  await requireDepartmentPage("it");
   return (
     <div className="md:flex">
       <AppNav user={user} />

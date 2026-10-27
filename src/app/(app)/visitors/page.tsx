@@ -48,7 +48,7 @@ async function VisitorFields({ hosts }: { hosts: HostOption[] }) {
 
 export default async function VisitorsPage() {
   const user = await requireUser();
-  // Reception's page: only with Reception picked on the home page.
+  // Reception's page: for Reception's members (and admins).
   await requireDepartmentPage("reception");
   const { t, locale } = await getI18n();
   const reception = isReception(user);

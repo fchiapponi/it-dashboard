@@ -25,12 +25,13 @@ export async function updateUserAccess(userId: string, form: FormData) {
   const admin = await requireAdmin();
   const role = form.get("role") === "admin" ? "admin" : "user";
   assert(userId !== admin.id || role === "admin", "You can't remove your own admin role.");
-  const departmentIds = form.getAll("departmentId").map(String);
+  // Each person follows one department.
+  const departmentId = str(form, "departmentId");
 
   await prisma.$transaction([
     prisma.user.update({ where: { id: userId }, data: { role } }),
     prisma.membership.deleteMany({ where: { userId } }),
-    prisma.membership.createMany({ data: departmentIds.map((departmentId) => ({ userId, departmentId })) }),
+    prisma.membership.createMany({ data: departmentId ? [{ userId, departmentId }] : [] }),
   ]);
   revalidatePath("/admin");
 }

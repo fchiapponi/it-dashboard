@@ -11,8 +11,11 @@ export default async function NewTicketPage({ searchParams }: PageProps<"/ticket
   const sp = await searchParams;
   const { t } = await getI18n();
   const assetTag = typeof sp.asset === "string" ? sp.asset : undefined;
-  // Each department has its own tickets: a new one goes to the department picked on the home page.
-  const current = await requireDepartment();
+  const assetDept = assetTag
+    ? (await prisma.asset.findUnique({ where: { tag: assetTag }, select: { department: { select: { slug: true } } } }))?.department.slug
+    : undefined;
+  // Each department has its own tickets: a new one goes to one of the user's departments (?dept=slug).
+  const current = await requireDepartment(sp.dept ?? assetDept);
   if (!current.takesTickets) return <PageHeader title={t("New ticket")} subtitle={t("{dept} doesn't take tickets.", { dept: current.name })} />;
 
   const [department, locations, asset] = await Promise.all([

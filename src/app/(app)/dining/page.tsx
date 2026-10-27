@@ -10,7 +10,7 @@ import { DiningDashboard } from "./DiningDashboard";
 
 export default async function DiningPage() {
   await requireUser();
-  // The kitchen's page: only with Kitchen & Dining picked on the home page.
+  // The kitchen's page: for the kitchen's members (and admins).
   await requireDepartmentPage("kitchen");
   const data = await getDiningData();
   const { t, locale } = await getI18n();

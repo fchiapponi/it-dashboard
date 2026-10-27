@@ -9,7 +9,7 @@ import { getI18n } from "@/i18n/server";
 /** Printable visitor badge (fits a standard 86×54 mm badge sleeve). */
 export default async function VisitorBadgePage({ params }: PageProps<"/visitors/[id]/badge">) {
   const user = await requireUser();
-  // Reception's page: only with Reception picked on the home page.
+  // Reception's page: for Reception's members (and admins).
   await requireDepartmentPage("reception");
   if (!isReception(user)) notFound();
   const { t, locale } = await getI18n();

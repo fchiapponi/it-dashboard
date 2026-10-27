@@ -24,8 +24,8 @@ export default async function TicketsPage({ searchParams }: PageProps<"/tickets"
   // The ticket open in the reading pane next to the list, like a mail client.
   const open = typeof sp.t === "string" ? sp.t : null;
 
-  // Only the department picked on the home page; tickets of different departments are never mixed.
-  const dept = await requireDepartment();
+  // One of the user's departments, picked in the sidebar; tickets of different departments are never mixed.
+  const dept = await requireDepartment(sp.dept);
   if (!dept.takesTickets) return <PageHeader title={t("Tickets")} subtitle={t("{dept} doesn't take tickets.", { dept: dept.name })} />;
 
   const agent = isAgentOf(user, dept.id);
@@ -67,7 +67,7 @@ export default async function TicketsPage({ searchParams }: PageProps<"/tickets"
 
   const href = (patch: Record<string, string | null>) => {
     const p = new URLSearchParams();
-    const merged = { view, state, q: q || null, t: open, ...patch };
+    const merged = { dept: dept.slug, view, state, q: q || null, t: open, ...patch };
     for (const [k, v] of Object.entries(merged)) if (v) p.set(k, v);
     return `/tickets?${p}`;
   };
@@ -86,7 +86,7 @@ export default async function TicketsPage({ searchParams }: PageProps<"/tickets"
         title={t("Tickets")}
         subtitle={<DeptBadge dept={dept} />}
         actions={
-          <Link href="/tickets/new" className="btn btn-primary">
+          <Link href={`/tickets/new?dept=${dept.slug}`} className="btn btn-primary">
             <Plus className="size-4" /> {t("New ticket")}
           </Link>
         }
@@ -112,6 +112,7 @@ export default async function TicketsPage({ searchParams }: PageProps<"/tickets"
           ))}
         </div>
         <form className="ml-auto flex gap-2" action="/tickets">
+          <input type="hidden" name="dept" value={dept.slug} />
           <input type="hidden" name="view" value={view} />
           <input type="hidden" name="state" value={state} />
           {open && <input type="hidden" name="t" value={open} />}

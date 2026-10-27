@@ -45,11 +45,6 @@ export const it = {
 
   // ------------------------------------------------------------ dashboard
   "Hello, {name}": "Ciao, {name}",
-  "Choose your department": "Scegli il tuo reparto",
-  "You'll only see its tickets, inventory and board. You can change it any time.":
-    "Vedrai solo i suoi ticket, l'inventario e la bacheca. Puoi cambiarlo quando vuoi.",
-  "Change department": "Cambia reparto",
-  "No departments yet. Add one in Admin.": "Nessun reparto ancora. Aggiungine uno in Admin.",
   "What needs attention today": "Cosa richiede attenzione oggi",
   "New ticket": "Nuovo ticket",
   "Assigned to me": "Assegnati a me",
@@ -156,7 +151,8 @@ export const it = {
   // ------------------------------------------------------------ boards
   "No color": "Nessun colore",
   "My board": "La mia bacheca",
-  "{dept}'s shared board — everyone can see and edit it": "Bacheca condivisa di {dept} — tutti possono vederla e modificarla",
+  Board: "Bacheca",
+  "{dept}'s shared board — its members can see and edit it": "Bacheca condivisa di {dept} — i membri del reparto possono vederla e modificarla",
   "Your personal board — only you can see it": "La tua bacheca personale — solo tu puoi vederla",
   "Board settings": "Impostazioni bacheca",
   Description: "Descrizione",
@@ -390,7 +386,6 @@ export const it = {
   "Save changes": "Salva modifiche",
   "No tickets for this asset.": "Nessun ticket per questo bene.",
   "Report a problem": "Segnala un problema",
-  "Goes to {dept} with this item already attached.": "Va a {dept} con questo oggetto già allegato.",
   Duplicate: "Duplica",
   "Print label": "Stampa etichetta",
   "Read now": "Leggi ora",

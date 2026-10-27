@@ -20,7 +20,7 @@ function formDays(form: FormData, workingOnly: boolean) {
   return workingOnly ? days.filter((d) => expectedHours(d) > 0) : days;
 }
 
-/** Hours are IT's: only with IT picked on the home page. */
+/** Hours are IT's: for IT's members (and admins). */
 async function itUser() {
   const user = await requireUser();
   await assertDepartment("it");

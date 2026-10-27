@@ -1,34 +1,36 @@
 import "server-only";
 import { cache } from "react";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { assert } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
+import { assert, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export const DEPARTMENT_COOKIE = "tasis_department";
-
 /**
- * The department picked on the home page, or null. Tickets, inventory and
- * boards show only this department's data. Memoized per request.
+ * The departments the signed-in user follows: their own, or every one for
+ * admins. Each one has its own tickets, inventory and board, listed in the
+ * sidebar. Memoized per request.
  */
-export const getDepartment = cache(async () => {
-  const slug = (await cookies()).get(DEPARTMENT_COOKIE)?.value;
-  return slug ? prisma.department.findUnique({ where: { slug } }) : null;
+export const myDepartments = cache(async () => {
+  const user = await requireUser();
+  return prisma.department.findMany({ where: user.isAdmin ? {} : { id: { in: user.departmentIds } }, orderBy: { name: "asc" } });
 });
 
-/** The picked department; sends the user to the home page to pick one otherwise. */
-export async function requireDepartment() {
-  const department = await getDepartment();
-  if (!department) redirect("/");
+/** The department a page is about (?dept=slug), among the user's; their first one by default, the home page if they have none. */
+export async function requireDepartment(slug: unknown) {
+  const departments = await myDepartments();
+  if (!departments.length) redirect("/");
+  const department = typeof slug === "string" && slug ? departments.find((d) => d.slug === slug) : departments[0];
+  if (!department) notFound();
   return department;
 }
 
-/** A page that belongs to one department (monitor and hours: IT, dining: kitchen, ...); home page otherwise. */
+const follows = async (slug: string) => (await myDepartments()).some((d) => d.slug === slug);
+
+/** A page that belongs to one department (monitor and hours: IT, dining: kitchen, ...); home page for everyone else. */
 export async function requireDepartmentPage(slug: string) {
-  if ((await getDepartment())?.slug !== slug) redirect("/");
+  if (!(await follows(slug))) redirect("/");
 }
 
 /** The same check for that page's server actions. */
 export async function assertDepartment(slug: string) {
-  assert((await getDepartment())?.slug === slug, "That belongs to another department.");
+  assert(await follows(slug), "That belongs to another department.");
 }

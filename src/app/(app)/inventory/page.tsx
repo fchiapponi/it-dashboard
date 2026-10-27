@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ArrowDown, Columns3, Plus, Printer, Trash2 } from "lucide-react";
 import { Badge, Empty, PageHeader, Section, TableWrap } from "@/components/ui";
 import type { Asset, Location } from "@/generated/prisma";
@@ -18,7 +17,7 @@ import {
   readingLabel,
   savedColumns,
 } from "@/lib/assets";
-import { isAgentOf, requireUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { requireDepartment } from "@/lib/department";
 import { ASSET_STATUSES, fmtDate, fmtDateTime, label } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -38,11 +37,10 @@ import { InventoryTabs } from "./Tabs";
 const LIMIT = 2000;
 
 export default async function InventoryPage({ searchParams }: PageProps<"/inventory">) {
-  const user = await requireUser();
-  // Only the department picked on the home page.
-  const dept = await requireDepartment();
-  if (!isAgentOf(user, dept.id)) notFound();
+  await requireUser();
   const sp = await searchParams;
+  // One of the user's departments, picked in the sidebar.
+  const dept = await requireDepartment(sp.dept);
   const { t, locale } = await getI18n();
   const filters = readAssetFilters(sp);
 
@@ -114,7 +112,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
           </>
         }
       />
-      <InventoryTabs active="assets" lowStock={low} />
+      <InventoryTabs active="assets" dept={dept.slug} lowStock={low} />
 
       <div className="mb-4 flex flex-wrap items-center gap-1 border-b border-line pb-3">
         {lists.map((l) => (

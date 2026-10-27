@@ -61,7 +61,7 @@ async function People() {
             <thead>
               <tr>
                 <th>{t("Person")}</th>
-                <th>{t("Departments")}</th>
+                <th>{t("Department")}</th>
                 <th>{t("Admin")}</th>
                 <th>{t("Last sign-in")}</th>
                 <th />
@@ -77,20 +77,15 @@ async function People() {
                       <div className="text-xs text-dim">{u.email}</div>
                     </td>
                     <td>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {/* Each person follows one department; admins see every one. */}
+                      <select form={formId} name="departmentId" defaultValue={u.memberships[0]?.departmentId ?? ""} className="input w-48">
+                        <option value="">—</option>
                         {departments.map((d) => (
-                          <label key={d.id} className="flex items-center gap-1.5 text-sm whitespace-nowrap">
-                            <input
-                              form={formId}
-                              type="checkbox"
-                              name="departmentId"
-                              value={d.id}
-                              defaultChecked={u.memberships.some((m) => m.departmentId === d.id)}
-                            />
+                          <option key={d.id} value={d.id}>
                             {d.name}
-                          </label>
+                          </option>
                         ))}
-                      </div>
+                      </select>
                     </td>
                     <td>
                       <input form={formId} type="checkbox" name="role" value="admin" defaultChecked={u.role === "admin"} aria-label={t("Admin")} />
