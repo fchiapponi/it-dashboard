@@ -5,7 +5,6 @@ import type {
   PrinterDTO,
   CameraDTO,
   ServerDTO,
-  TrelloListDTO,
 } from "@/lib/types";
 import type { AccessPointDTO } from "@/lib/meraki";
 
@@ -29,8 +28,4 @@ export function useAccessPoints() {
 
 export function useServers() {
   return useSWR<ServerDTO[]>("/api/servers", fetcher, { refreshInterval: 30000 });
-}
-
-export function useTrello() {
-  return useSWR<TrelloListDTO[]>("/api/trello", fetcher, { refreshInterval: 60000 });
 }

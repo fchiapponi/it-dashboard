@@ -13,7 +13,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "TASIS // Sys.Monitor",
-  description: "Control-room screen for printers and the IT Trello board",
+  description: "Control-room screen for the school printers",
 };
 
 // The TV dashboard: full screen next to the app's collapsed sidebar. Signing in

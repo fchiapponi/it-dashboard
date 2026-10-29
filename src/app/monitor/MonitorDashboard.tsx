@@ -1,8 +1,8 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { Printer, ListTodo, FileText, AlertTriangle, TerminalSquare } from "lucide-react";
-import { usePrinters, useTrello } from "@/lib/hooks";
+import { Printer, FileText, AlertTriangle, TerminalSquare } from "lucide-react";
+import { usePrinters } from "@/lib/hooks";
 import { StatTile } from "@/components/monitor/StatTile";
 import { TerminalPanel } from "@/components/monitor/TerminalPanel";
 import { StatusBadge, statusColor, type Status } from "@/components/monitor/StatusBadge";
@@ -154,12 +154,8 @@ function supplyShortLabel(supply: { name: string; type: string }, t: T): string 
 export default function TvDashboardPage() {
   const { t } = useI18n();
   const { data: printers } = usePrinters();
-  const { data: trelloLists } = useTrello();
-  // Finished work isn't worth screen space on the TV.
-  const openTrelloLists = trelloLists?.filter((list) => list.name.trim().toLowerCase() !== "done");
 
   const printersOnline = printers?.filter((p) => p.status === "online").length ?? 0;
-  const openTrelloCards = openTrelloLists?.reduce((sum, list) => sum + list.cards.length, 0) ?? 0;
   const totalPagesPrinted = printers?.reduce((sum, p) => sum + (p.pageCount ?? 0), 0) ?? 0;
 
   const sortedPrinters = sortPrintersByUrgency(printers);
@@ -295,13 +291,7 @@ export default function TvDashboardPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-6 gap-3">
-        <StatTile
-          label={t("Open Trello cards")}
-          value={openTrelloCards}
-          icon={<ListTodo className="h-4 w-4" />}
-          tone="cyan"
-        />
+      <div className="grid grid-cols-5 gap-3">
         <StatTile
           label={t("Pages printed")}
           value={totalPagesPrinted.toLocaleString("it-IT")}
@@ -334,30 +324,7 @@ export default function TvDashboardPage() {
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
-        <TerminalPanel title={t("trello board")} bodyClassName="overflow-hidden p-0">
-          <div className="no-scrollbar h-full columns-2 gap-3 overflow-y-auto p-2 [column-fill:_balance]">
-            {!openTrelloLists?.length && <p className="text-base text-[var(--text-dim)]">{t("No Trello data.")}</p>}
-            {openTrelloLists?.map((list) => (
-              <div key={list.id} className="glass-panel mb-3 break-inside-avoid rounded-[6px]">
-                <div className="truncate border-b border-white/10 px-2.5 py-1 text-xs tracking-[0.1em] text-[var(--text-dim)] uppercase">
-                  {list.name} <span className="text-[var(--text-faint)]">({list.cards.length})</span>
-                </div>
-                <div className="flex flex-col gap-1 p-1.5">
-                  {list.cards.map((card) => (
-                    <div
-                      key={card.id}
-                      className="glass-chip rounded-[0.25rem] px-2 py-1 text-sm leading-snug text-[var(--text-primary)]"
-                    >
-                      {card.name}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </TerminalPanel>
-
+      <div className="grid min-h-0 flex-1 gap-3">
         <TerminalPanel
           title={`${t("printers")} (${printers?.length ?? 0})`}
           bodyClassName="overflow-hidden p-0"

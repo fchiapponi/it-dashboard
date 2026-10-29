@@ -21,7 +21,7 @@ export async function AppNav({ user }: { user: CurrentUser }) {
   const own: Record<string, NavItem[]> = {
     it: [
       { href: "/hours", label: t("Hours"), icon: "hours" },
-      // The full-screen control-room view for the TV (printers, Wi-Fi, IT Trello board)
+      // The full-screen control-room view for the TV (printers, Wi-Fi)
       { href: "/monitor", label: t("Monitor"), icon: "monitor" },
     ],
     kitchen: [{ href: "/dining", label: t("Dining"), icon: "dining" }],

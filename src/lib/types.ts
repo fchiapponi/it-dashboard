@@ -46,14 +46,3 @@ export interface ServerDTO {
   lastSeenAt: string | null;
   lastError: string | null;
 }
-
-export interface TrelloCardDTO {
-  id: string;
-  name: string;
-}
-
-export interface TrelloListDTO {
-  id: string;
-  name: string;
-  cards: TrelloCardDTO[];
-}

@@ -10,7 +10,7 @@ One web app for TASIS staff to:
 - **Deliveries**: reception logs incoming parcels and marks them as collected. Recipients see what's waiting for them on their dashboard.
 - **Events**: staff create events and say what IT, Facilities, Electrician and Kitchen & Dining need to do. Each need becomes a ticket for that department, linked back to the event. The app warns when two events are booked in the same place at the same time.
 - **Dining**: a dashboard of the meals served each day in De Nobili, Hadsall and Focolare, read from the kitchen's Google Sheet and matched against the school calendar (classes, weekends, holidays, orientation, summer).
-- **Monitor**: the IT control-room screen at `/monitor`, made for a TV: printers (status, faults, ink/toner, page counts), Wi-Fi access points from Meraki and the IT Trello board. See [Monitor](#monitor-control-room-screen).
+- **Monitor**: the IT control-room screen at `/monitor`, made for a TV: printers (status, faults, ink/toner, page counts), and Wi-Fi access points from Meraki. See [Monitor](#monitor-control-room-screen).
 
 Next.js 16, Prisma 6 + SQLite and Tailwind 4, running on the school's internal Windows server.
 
@@ -46,7 +46,7 @@ On the Windows server, double-click **`Start TASIS One.bat`**: it does all of th
 - Run `npm install` on the server itself. A `node_modules` folder copied from a Mac doesn't work on Windows: delete it and the launcher reinstalls it.
 - Keep the folder, and so `prisma/dev.db`, on a local disk of the server, never on a network share. SQLite can corrupt its file on network shares. If possible, exclude the folder from the antivirus' real-time scanning.
 - In `.env`, write Windows paths with forward slashes, e.g. `GOOGLE_SERVICE_ACCOUNT_FILE="C:/helpdesk-secrets/service-account.json"`.
-- The server needs outbound HTTPS to `*.googleapis.com`, to `api.meraki.com` and `api.trello.com` for the Monitor, and to `api.anthropic.com` if tickets by email are on. If the school goes out through a proxy, add `HTTPS_PROXY="http://proxy:port"` and `NODE_USE_ENV_PROXY=1` to `.env`.
+- The server needs outbound HTTPS to `*.googleapis.com`, to `api.meraki.com` for the Monitor, and to `api.anthropic.com` if tickets by email are on. If the school goes out through a proxy, add `HTTPS_PROXY="http://proxy:port"` and `NODE_USE_ENV_PROXY=1` to `.env`.
 - Run only one copy of the app at a time. The mailbox check runs inside the app, so two copies would handle each email twice.
 
 To work on the app, run `npm run dev`. In development the login page also shows a **development sign-in** form, so you can sign in as any email without Google. That form is never available in production builds.
@@ -131,7 +131,6 @@ The school calendar the figures are matched against lives in `src/lib/schoolCale
 
 - **Printers** are the inventory's printers: every item whose type is a printer (Printer, Copier, MFP, ...), isn't retired and has an **IP address** field, in any department. To add or remove one from the screen, add or edit it in *Inventory*. `npm run db:seed` adds the school's network printers to IT the first time, when there are no printers yet. The app reads every printer over SNMP every `PRINTER_REFRESH_MINUTES` (default 2): online or not, faults (paper jam, door open, out of paper, ...), ink/toner levels and page count. The same reading fills the *Printer status* box on the item's page and the Ink / Page count columns.
 - **Access points** come from the Meraki cloud API (every wireless device the API key can see). No configuration besides `MERAKI_API_KEY` and `MERAKI_ORG_ID`; without them that tile stays empty.
-- **Trello**: the lists of the board in `TRELLO_BOARD_ID`, leaving out a list called "Done".
 - **Cameras and servers** are listed in `src/config/devices.ts`. On every start the database is synced with that file (new ones added, removed ones deleted), then they are checked every minute (ONVIF for cameras, common TCP ports for servers). They are available at `/api/cameras` and `/api/servers` but not shown on the screen yet.
 
 The printers, cameras and servers are on the school LAN, so the app has to run on a machine inside it (the Windows server is).
@@ -142,7 +141,6 @@ The printers, cameras and servers are on the school LAN, so the app has to run o
 | `CAMERA_POLL_INTERVAL_MS` / `SERVER_POLL_INTERVAL_MS` | How often cameras and servers are checked, in milliseconds (default and minimum 60000). |
 | `CREDENTIALS_ENCRYPTION_KEY` | Encrypts camera passwords in the database. Only needed when a camera in `devices.ts` has a password. Generate one with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` and never change it afterwards. |
 | `MERAKI_API_KEY` / `MERAKI_ORG_ID` | Meraki Dashboard API key (*My profile → API access*) and the organization that owns the access points. |
-| `TRELLO_API_KEY` / `TRELLO_TOKEN` / `TRELLO_BOARD_ID` | Key from trello.com/power-ups/admin, the token generated from the *Token* link on that page, and the board ID from the board's URL. |
 
 Known quirks:
 
