@@ -1,12 +1,13 @@
 // Background jobs, started once by instrumentation.ts on the Node.js server:
 // re-reads the network printers (status, toner levels, page counts), checks
 // the cameras and servers for /monitor, re-reads the kitchen's meal-count
-// sheet, and polls the ticket@ mailbox when Gmail is configured (see
+// and inventory sheets, and polls the ticket@ mailbox when Gmail is configured (see
 // "Tickets by email" in the README).
 import { pollAllCameras } from "@/lib/camera-service";
 import { syncDevicesFromConfig } from "@/lib/device-sync";
 import { diningRefreshMs, getDiningData } from "@/lib/dining";
 import { pollTicketMailbox } from "@/lib/emailTickets";
+import { getKitchenInventory, kitchenInventoryRefreshMs } from "@/lib/kitchenInventory";
 import { refreshPrinters } from "@/lib/printers";
 import { pollAllServers } from "@/lib/server-service";
 
@@ -40,6 +41,17 @@ if (process.env.DINING_SHEET_ID) {
       .then((d) => console.log(`[dining] ${d.error ? `read failed: ${d.error}` : `read ${d.days.length} days`}`))
       .catch((e) => console.error("[dining]", e));
   setInterval(read, diningRefreshMs());
+  void read();
+}
+
+if (process.env.KITCHEN_INVENTORY_SHEET_ID) {
+  const read = () =>
+    getKitchenInventory(true)
+      .then((d) =>
+        console.log(`[kitchen-inventory] ${d.error ? `read failed: ${d.error}` : `read ${d.categories.reduce((n, c) => n + c.articles.length, 0)} articles`}`),
+      )
+      .catch((e) => console.error("[kitchen-inventory]", e));
+  setInterval(read, kitchenInventoryRefreshMs());
   void read();
 }
 

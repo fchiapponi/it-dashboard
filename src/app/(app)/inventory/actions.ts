@@ -1,10 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { defaultColumns, DEVICE_FIELDS, extraLabel, FIELD_COLUMNS, isReadFromDevice, isPrinter, parseExtra, PRINTER_COLUMNS, stringifyExtra } from "@/lib/assets";
 import { assert, isAgentOf, requireUser } from "@/lib/auth";
+import { assertDepartment } from "@/lib/department";
 import { ASSET_STATUSES, fromLocalInput, int, label, oneOf, req, str } from "@/lib/format";
+import { getKitchenInventory } from "@/lib/kitchenInventory";
 import { ipField } from "@/lib/printerSnmp";
 import { fillFromPrinter, refreshPrinters } from "@/lib/printers";
 import { prisma } from "@/lib/prisma";
@@ -300,4 +302,17 @@ export async function deleteSupply(supplyId: string) {
   assert(isAgentOf(user, supply.departmentId));
   await prisma.supply.delete({ where: { id: supplyId } });
   revalidatePath("/inventory/supplies");
+}
+
+// ------------------------------------------------------------------ kitchen
+
+/** Re-reads the kitchen's inventory sheet from Google now, instead of waiting for the next scheduled read. */
+export async function refreshKitchenInventory(): Promise<{ ok: boolean; message: string }> {
+  await requireUser();
+  await assertDepartment("kitchen");
+  const data = await getKitchenInventory(true);
+  refresh();
+  const { t } = await getI18n();
+  const n = data.categories.reduce((sum, c) => sum + c.articles.length, 0);
+  return data.error ? { ok: false, message: data.error } : { ok: true, message: t("Read {n} articles", { n }) };
 }

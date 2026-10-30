@@ -9,6 +9,7 @@ One web app for TASIS staff to:
 - **Visitors**: staff pre-register the people they expect. Reception checks visitors in and out with a badge number, prints visitor badges and always has an "on site now" list.
 - **Deliveries**: reception logs incoming parcels and marks them as collected. Recipients see what's waiting for them on their dashboard.
 - **Events**: staff create events and say what IT, Facilities, Electrician and Kitchen & Dining need to do. Each need becomes a ticket for that department, linked back to the event. The app warns when two events are booked in the same place at the same time.
+- **Kitchen inventory**: the kitchen's articles and how many De Nobili, Hadsall and Focolare each use, read from a Google Sheet.
 - **Dining**: a dashboard of the meals served each day in De Nobili, Hadsall and Focolare, read from the kitchen's Google Sheet and matched against the school calendar (classes, weekends, holidays, orientation, summer).
 - **Monitor**: the IT control-room screen at `/monitor`, made for a TV: printers (status, faults, ink/toner, page counts), and Wi-Fi access points from Meraki. See [Monitor](#monitor-control-room-screen).
 
@@ -125,6 +126,20 @@ The school calendar the figures are matched against lives in `src/lib/schoolCale
 | `DINING_SHEET_ID` | ID of the kitchen's meal-count sheet. Leave it empty to turn the page's data off. |
 | `DINING_REFRESH_HOURS` | How often the sheet is re-read in the background (default 6). |
 
+## Kitchen inventory
+
+For **Kitchen & Dining**, *Inventory* shows the articles of the kitchen's inventory Google Sheet instead of tagged items. The sheet is edited in Google, not in the app:
+
+- one tab per category (Plates, Cutlery, Glasses, ...), each shown as a list;
+- in each tab a header row (it can sit under a title) with the article column (`Article`, `Articolo`, `Item` or `Name`) and one column per hall: `De Nobili`, `Hadsall`, `Focolare`, holding how many of that article the hall uses;
+- any other column (Unit, Code, Notes, ...) is shown as it is; a `Total` column is ignored, the app adds up the halls itself.
+
+| Article | Unit | De Nobili | Hadsall | Focolare |
+| --- | --- | --- | --- | --- |
+| Dinner plate | pcs | 200 | 80 | 60 |
+
+Share it like the dining sheet, put its ID in `KITCHEN_INVENTORY_SHEET_ID` and restart the app. It is re-read every `KITCHEN_INVENTORY_REFRESH_HOURS` (default 6) and on **Refresh now**.
+
 ## Monitor (control-room screen)
 
 `/monitor` is a full-screen page without the app's menu, with a dark theme that scales from a laptop up to a 4K TV. Agents find it as **Monitor** in the menu. Like every other page it needs a sign-in: on the TV's browser, sign in once with a school account and the session lasts 30 days.
@@ -140,7 +155,7 @@ The printers, cameras and servers are on the school LAN, so the app has to run o
 | `PRINTER_REFRESH_MINUTES` | How often every printer is re-read (default 2). |
 | `CAMERA_POLL_INTERVAL_MS` / `SERVER_POLL_INTERVAL_MS` | How often cameras and servers are checked, in milliseconds (default and minimum 60000). |
 | `CREDENTIALS_ENCRYPTION_KEY` | Encrypts camera passwords in the database. Only needed when a camera in `devices.ts` has a password. Generate one with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` and never change it afterwards. |
-| `MERAKI_API_KEY` / `MERAKI_ORG_ID` | Meraki Dashboard API key (*My profile → API access*) and the organization that owns the access points. |
+| `MERAKI_API_KEY` / `MERAKI_ORG_ID` | Meraki Dashboard API key (*My profile → API access*) and the organization that owns the access points. The app only reads from Meraki, so generate the key from a **read-only** dashboard admin (*Organization → Administrators*, organization access *Read-only*). |
 
 Known quirks:
 

@@ -28,6 +28,7 @@ import { lowStockCount } from "@/lib/tickets";
 import { ConfirmButton } from "../boards/ConfirmButton";
 import { deleteAssets, deleteList, refreshAllPrinters } from "./actions";
 import { InkLevels } from "./InkLevels";
+import { KitchenInventory } from "./KitchenInventory";
 import { PrintLabelsButton } from "./labels/PrintLabelsButton";
 import { RenameListButton } from "./RenameListButton";
 import { PrinterButton } from "./PrinterButton";
@@ -41,6 +42,8 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
   const sp = await searchParams;
   // One of the user's departments, picked in the sidebar.
   const dept = await requireDepartment(sp.dept);
+  // The kitchen keeps its articles in a Google Sheet instead.
+  if (dept.slug === "kitchen") return <KitchenInventory dept={dept} sp={sp} />;
   const { t, locale } = await getI18n();
   const filters = readAssetFilters(sp);
 

@@ -1,5 +1,6 @@
 import "server-only";
-import { readXlsx, serialToISODate, type CellValue } from "@/lib/xlsx";
+import { downloadSheet } from "@/lib/sheets";
+import { serialToISODate, type CellValue } from "@/lib/xlsx";
 
 /**
  * Daily meal counts from the kitchen's Google Sheet: one tab per month, one
@@ -29,9 +30,9 @@ const FIRST_ROW = 3; // 0-based: rows 1–3 are the title and two header rows
 const LAST_ROW = 36; // day 31
 const TYPO: Record<string, string> = { BUNCH: "BRUNCH", "SPOECIAL DINNER DE NOBILI": "SPECIAL DINNER DE NOBILI", "S.D.": "SPECIAL DINNER" };
 
-function parseWorkbook(buf: Buffer): DiningDay[] {
+function parseWorkbook(sheets: Map<string, CellValue[][]>): DiningDay[] {
   const days: DiningDay[] = [];
-  for (const rows of readXlsx(buf).values()) {
+  for (const rows of sheets.values()) {
     for (let r = FIRST_ROW; r <= LAST_ROW; r++) {
       const row = rows[r];
       const dateCell = row?.[0];
@@ -78,15 +79,7 @@ async function load(): Promise<DiningData> {
   const id = process.env.DINING_SHEET_ID;
   if (!id) return { configured: false, days: [], fetchedAt: null, error: null };
   try {
-    const res = await fetch(`https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/export?format=xlsx`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(20_000),
-    });
-    if (res.status === 401 || res.status === 403 || res.status === 404) {
-      throw new Error("Google refused to send the sheet. Check that it is shared as “Anyone with the link can view”.");
-    }
-    if (!res.ok) throw new Error(`Google answered ${res.status}.`);
-    const days = parseWorkbook(Buffer.from(await res.arrayBuffer()));
+    const days = parseWorkbook(await downloadSheet(id));
     return { configured: true, days, fetchedAt: new Date().toISOString(), error: null };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

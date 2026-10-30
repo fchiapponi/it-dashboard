@@ -470,6 +470,17 @@ export const it = {
   "No meal sheet is connected. Set {variable} in {file} to the ID of the kitchen's Google Sheet and restart the app.": "Nessun foglio dei pasti collegato. Imposta {variable} in {file} con l'ID del Google Sheet della cucina e riavvia l'app.",
   "The kitchen sheet has no meal counts yet.": "Il foglio della cucina non ha ancora conteggi dei pasti.",
 
+  // ------------------------------------------------------------ kitchen inventory
+  "Articles used in De Nobili, Hadsall and Focolare": "Articoli usati a De Nobili, Hadsall e Focolare",
+  "No inventory sheet is connected. Set {variable} in {file} to the ID of the kitchen's Google Sheet and restart the app.": "Nessun foglio dell'inventario collegato. Imposta {variable} in {file} con l'ID del Google Sheet della cucina e riavvia l'app.",
+  "The kitchen sheet has no articles yet.": "Il foglio della cucina non ha ancora articoli.",
+  "This tab has no articles.": "Questa scheda non ha articoli.",
+  "Search {type}…": "Cerca in {type}…",
+  "{n} article": "{n} articolo",
+  "{n} articles": "{n} articoli",
+  Article: "Articolo",
+  "Read {n} articles": "Letti {n} articoli",
+
   // ------------------------------------------------------------ dining actions
   "Read {n} days": "Letti {n} giorni",
 
